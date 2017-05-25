@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>D3</title>
+    <script src="d3.min.js"></script>
+		<style>
+		
+
+
+		</style>
+	</head>
+
+	<body>
+
+		<script>
+
+
+
+		var dataset = [
+				{
+					ind: 1,
+					textval: null
+				}
+			];
+
+		var textset = [];
+		console.log(dataset.length);
+		var size_mult = 2;
+		var size = 20 * size_mult;
+
+		
+		//function xscale(offset){
+		//	console.log(offset);
+			var scale = d3.scale.linear()
+				.domain([1,5])
+				.range([0,200*size_mult]);
+		//}
+
+
+
+		var arrowScale = d3.scale.linear()
+			.domain([1,5])
+			.range([0,400]);
+
+		var arrowScale2 = d3.scale.linear()
+			.domain([1,5])
+			.range([0-size/2,400-size/2]);
+
+
+		var margin = {top: 30, right: 20, bottom: 30, left: 50},
+		    width = 1000 - margin.left - margin.right,
+		    height = 150 - margin.top - margin.bottom;
+
+		var svg = d3.select("body")
+			.append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+    	.append("g")
+        .attr("transform", 
+              "translate(" + margin.left + "," + margin.top + ")");
+
+		function render(data,color){
+			var rects = svg.selectAll("rect").data(dataset);
+			var row = 50;
+
+			//enter
+			rects.enter().append("rect")
+				.attr("width",size*size_mult)
+				.attr("height",size);
+			//update
+			rects
+				//if(scale > 250){ row = row+50; };
+				.attr("y",row)
+				.attr("x",scale)
+				.attr("fill", "white")
+				.attr("stroke", color);
+			//exit
+			rects.exit().remove();
+
+			row = row + 20;
+			var arrow = svg.selectAll("line").data(dataset);
+			//enter
+			arrow.enter().append("line")
+				.attr("stroke", "white")
+				.attr("stroke-width", 0);
+			//update
+			arrow
+				.attr("x1", arrowScale)
+				.attr("y1", row)
+				.attr("x2", arrowScale2)
+				.attr("y2", row)
+				.attr("stroke-width", 2)
+				.attr("stroke", "black");
+			//exit
+			arrow.exit().remove();
+
+
+		}
+
+
+		function dataset_obj(ind, textval){
+			this.ind = ind;
+			this.textval = textval;
+		}
+
+		dataset = [1];
+		console.log(dataset.length);
+		render(dataset,"blue");
+  	//d3.csv("data.csv",function(data){
+		//	dataset = data;    //Once loaded, copy to dataset.
+    //	render;   
+    //});
+
+		function addItem(){
+			var textbox1 = document.getElementById('textbox1');
+			textset.push(textbox1.value);
+			console.log(textset);
+
+			svg.append("text")
+				.text(textbox1.value);
+			
+			dataset.push(dataset.length+1);
+			render(dataset,"red");
+			console.log(dataset);
+		}
+
+		</script>
+	<br />
+	<input name="add" type="button" value="add" onClick="addItem()" />
+	<input name="textbox" id="textbox1" type="text" />
+	<input name="insert" type="button" value="insert at" onClick="insertItem()" />
+	<input name="textbox" id="textbox2" type="text" />
+	</body>
+</html>
