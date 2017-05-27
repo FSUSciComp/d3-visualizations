@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <style>
+		body { margin:0;position:fixed;top:0;right:0;bottom:0;left:0; }
+    p {
+    	font: 14px sans-serif;
+    }
+
+    #left {
+      float: left;
+      width: 50%;
+      text-align: right;
+    }
+
+    #right {
+      float: right;
+      width: 50%;
+      text-align: left;
+    }
+
+    #info {
+      margin-left: 50px;
+    }
+
+    #canvas-element {
+      border: solid 1px black;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="container">
+    <div id="left">
+        <canvas id="canvas-element" class="plot"></canvas>
+    </div>
+    <div id="right">
+      <div id="info">
+            <p>Number of points in square: <span id="in-square"></span></p>
+            <p>Number of points in circle: <span id="in-circle"></span></p>
+            <p>Current estimate value of Pi: <span id="pi-estimate"></span></p>
+          	<p>Current error: <span id="pi-error"></span></p>
+            <p>
+              <button id="start-button">Start</button>
+              <button id="stop-button">Stop</button>
+              <button id="reset-button">Reset</button>
+          	</p>
+        </div>
+    </div>
+	</div>
+  <script>
+    
+	var circleDiameter = 400;
+  var circleRadius = circleDiameter / 2;
+  var canvasArea = circleDiameter*circleDiameter;
+
+  var margin = {top: 10, right: 20, bottom: 40, left: 60};
+  var lineWidth = 400 - margin.left - margin.right;
+  var lineHeight = 250 - margin.top - margin.bottom;
+
+  var maxPoints = 2500;
+  var pointRadius = 4;
+  var drawIntervalTime = 1;
+
+  var pointsInSquare = 0;
+  var pointsInCircle = 0;
+  var estimatedPi = 0;
+  var currentError = 0;
+  var running = false;
+
+  // create the canvas for drawing the circle
+  var canvas = d3.select("#canvas-element")
+  .attr("width", circleDiameter)
+  .attr("height", circleDiameter);
+
+  var context = canvas.node().getContext("2d");
+	
+  // draw circle  
+  context.strokeStyle = 'black';
+  context.lineWidth = 3;
+  context.beginPath();
+  context.arc(circleRadius, circleRadius, circleRadius, 0, 2 * Math.PI);
+  context.closePath();
+  context.stroke();
+  
+  //setup buttons  
+  d3.select("#start-button").on("click", start);
+  d3.select("#stop-button").on("click", stop);
+	d3.select("#reset-button").on("click", reset);
+  
+  function stop() {
+    running = false;
+  }
+    
+  // start the simulation
+  function start() {
+    var count = 0;
+    running = true;
+    var drawInterval = setInterval(function() {
+      if(count > maxPoints || !running) {
+        clearInterval(drawInterval);
+      }
+      update(count);
+      count++;
+    }, 10);
+  }
+  
+  //reset the simulation
+  function reset() {
+    //redraw circle
+    context.clearRect(0, 0, circleDiameter, circleDiameter);
+    context.strokeStyle = 'black';
+  	context.lineWidth = 3;
+  	context.beginPath();
+  	context.arc(circleRadius, circleRadius, circleRadius, 0, 2 * Math.PI);
+  	context.closePath();
+  	context.stroke();
+    //clear variables
+    pointsInSquare = 0;
+  	pointsInCircle = 0;
+  	estimatedPi = 0;
+  	currentError = 0;
+    //clear text
+    updateText();
+  }
+    
+	function update(count) {
+    // generate a random point
+    var x = randomFloat(0, circleDiameter);
+    var y = randomFloat(0, circleDiameter);
+		var pointColor = '#FFFFFF'
+    // check if the point is in the circle
+    if(l2Norm(x-circleRadius, y-circleRadius) < circleRadius) {
+      pointColor = '#219034';
+      pointsInCircle++;
+    }
+    else {
+      pointColor = '#ae0e48';
+    }
+
+    // draw the point
+    drawPoint(x, y, pointRadius, pointColor);
+
+    pointsInSquare++;
+    estimatedPi = (pointsInCircle / pointsInSquare) * 4;
+    currentError = Math.PI - estimatedPi;
+    
+    updateText();
+  }    
+    
+	function drawPoint(x, y, r, color) {
+    context.fillStyle = color;
+    context.beginPath();
+    context.arc(x, y, r, 0, 2 * Math.PI);
+    context.closePath();
+    context.fill();
+  }
+  
+  function l2Norm(x, y) {
+    return Math.sqrt(x*x + y*y);
+  }
+
+  function randomFloat(min, max) {
+    return Math.floor(Math.random() * (max - min)) + min;
+  }
+  
+  function updateText() {
+  	document.getElementById('in-square').innerHTML = pointsInSquare.toString();
+    document.getElementById('in-circle').innerHTML = pointsInCircle.toString();
+    document.getElementById('pi-estimate').innerHTML = estimatedPi.toString();
+    document.getElementById('pi-error').innerHTML = currentError.toString();
+  }  
+
+  </script>
+</body>
