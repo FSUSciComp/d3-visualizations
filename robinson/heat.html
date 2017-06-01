@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <style>
+		body { margin:0;position:fixed;top:0;right:0;bottom:0;left:0; }
+    p {
+    	font: 14px sans-serif;
+    }
+
+    #left {
+      float: left;
+      width: 50%;
+      text-align: right;
+    }
+
+    #right {
+      float: right;
+      width: 50%;
+      text-align: left;
+    }
+
+    #info {
+      margin-left: 50px;
+    }
+
+    #canvas-element {
+      border: solid 1px black;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="container">
+    <div id="left">
+        <canvas id="canvas-element" class="plot"></canvas>
+    </div>
+    <div id="right">
+      <div id="info">
+			<p><input id="Alpha">Thermal Diffusivity Coefficient</input></p>
+			<p><input id="Time">Time Horizon</input></p>
+          	<p><input id="Timestep">Timestep Size</input></p>
+            <p>
+              <button id="FE-timestep-button">FE Timestep</button>
+			  <button id="FE-final-button">To Final Time</button>
+          	</p>
+			<p>
+              <button id="BE-timestep-button">BE Timestep</button>
+			  <button id="BE-final-button">To Final Time</button>
+              <button id="reset-button">Reset</button>
+          	</p>
+        </div>
+    </div>
+	</div>
+  <script>
+  var width = 400;
+  var height = 400;
+
+  var margin = {top: 10, right: 20, bottom: 40, left: 60};
+  var lineWidth = 400 - margin.left - margin.right;
+  var lineHeight = 250 - margin.top - margin.bottom;
+
+
+
+
+  // create the canvas for drawing the circle
+  var canvas = d3.select("#canvas-element")  
+  .attr("width", width)
+  .attr("height", height);
+
+  var context = canvas.node().getContext("2d");
+	
+  //Initial Conditions
+  var N = 64;
+  var dx = Math.PI*2/(N-1);
+  var u = new Array(N);
+  var v = new Array(N);
+  var timeFE = 0.0;
+  var timeBE = 0.0;
+  for(var i =0;i<N;i++){
+	u[i]=Math.sin(dx*i);
+	v[i]=Math.sin(dx*i);
+  }
+  DrawSol(u,'black');
+
+  //setup buttons  
+  d3.select("#FE-timestep-button").on("click", TimestepFE);
+  d3.select("#FE-final-button").on("click", GoToFinalFE);
+  d3.select("#BE-timestep-button").on("click", TimestepBE);
+  d3.select("#BE-final-button").on("click", GoToFinalBE);
+  d3.select("#reset-button").on("click", reset);
+  
+
+
+  function TimestepFE(){
+	var alpha= document.getElementById('Alpha').value;
+	var dt = document.getElementById('Timestep').value;
+	var constant = dt*alpha/dx/dx;
+	var up = u.slice();
+	for(var i=1;i<N-1;i++){
+		u[i]= up[i]- constant*(2*up[i]-up[i-1]-up[i+1]);
+	}
+	timeFE = parseFloat(timeFE) + parseFloat(dt);
+	DrawSol(u,'green');
+  }
+    
+  function TimestepBE(){
+    var alpha= document.getElementById('Alpha').value;
+	var dt = document.getElementById('Timestep').value;
+	var factor = dx*dx/dt/alpha;
+	var b = new Array(N);
+	for(var i=0;i<N;i++){
+		b[i]=v[i];
+	}
+	var tolerance = 1E-2;
+	var error = 1.0;
+	console.log(factor);
+	while(error > tolerance){
+		var vp = new Array(N);
+		for(var i=0;i<N;i++){
+			vp[i]=v[i];
+		}
+		console.log(b[3]);
+		for(var i=1;i<N-1;i++){
+			v[i]= (b[i]*factor-vp[i-1]-vp[i+1])/(factor-2);
+		}
+		error = Distance(v,vp)
+	}
+	timeBE = parseFloat(timeBE) + parseFloat(dt);
+	DrawSol(v,'blue');
+	
+  
+  }
+  function GoToFinalFE(){
+  
+  }
+  function GoToFinalBE(){
+  
+  }
+  function Distance(a,b){
+	var sum = 0.0;
+	for(var i=0;i<N;i++){
+		var term = a[i] - b[i];
+		sum = sum + term*term;
+	}
+	return Math.sqrt(sum);
+  }
+	
+  
+  //reset the solution
+  function reset() {
+    context.clearRect(0, 0, width, height);
+	u = new Array(N);
+	v = new Array(N);
+	for(var i =0;i<N;i++){
+		u[i]=Math.sin(dx*i);
+		v[i]=Math.sin(dx*i);
+	}
+	timeFE=0;
+	timeBE=0;
+	DrawSol(u,'black');
+	DrawSol(v,'black');
+    
+  }
+  
+  function DrawSol(x,color){
+	context.strokeStyle=color;
+	context.lineWidth = 3;
+	context.beginPath();
+	context.moveTo(0,(height/2) - (height/2)*x[0]);
+	for(var i=1;i<N;i++){
+		context.lineTo(width*i/(N-1),(height/2) - (height/2)*x[i]);
+		context.stroke();
+	}
+	context.closePath();
+	context.clearRect(width-100,35,100,-80);
+	context.fillStyle="red";
+	context.fillText("Time FE:"+timeFE.toFixed(2).toString(),width-100,height/20);
+	context.fillText("Time FE:"+timeBE.toFixed(2).toString(),width-100,height/20+10);
+  }  
+    
+  function randomFloat(min, max) {
+    return Math.floor(Math.random() * (max - min)) + min;
+  }
+  
+  function updateText() {
+  	document.getElementById('in-square').innerHTML = pointsInSquare.toString();
+    document.getElementById('in-circle').innerHTML = pointsInCircle.toString();
+    document.getElementById('pi-estimate').innerHTML = estimatedPi.toString();
+    document.getElementById('pi-error').innerHTML = currentError.toString();
+  }  
+
+  </script>
+</body>
