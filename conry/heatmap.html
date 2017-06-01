@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>D3</title>
+    <script src="d3.min.js"></script>
+		<style>
+
+		</style>
+	</head>
+	<body>
+
+
+		<script>
+
+
+		var numrows = 6;
+		var width = 50;
+		var xpos = 0;
+		var ypos = 0;
+		d3.tsv("./mydata.tsv", function(data) {
+
+			var color = d3.scaleLinear()
+				.domain([0,1])
+				.range(["red","blue"])
+
+			var margin = {top: 0, right: 0, bottom: 0, left: 100},
+		    mwidth = 1000 - margin.left - margin.right,
+		    mheight = 1000 - margin.top - margin.bottom;
+
+			var canvas = d3.select("body").append("svg")
+				.attr("width",mwidth)
+				.attr("height",mheight)
+        .attr("transform", 
+              "translate(" + margin.left + "," + margin.top + ")");
+
+
+			var clicked=false;
+
+			canvas.selectAll("rect")
+				.data(data)
+				.enter()
+					.append("rect")
+					.attr("width",	50)
+					.attr("height",	50)
+					.attr("x",function(d,i){
+						console.log(d.x);						
+						xpos = (width+2) * i;
+						return xpos%((width+2)*numrows);
+					})
+					.attr("y",function(d,i){
+						if(i%numrows==0){
+							ypos+=(width+2);	
+						}					
+							return ypos;
+					})
+					.attr("fill",function(d) { return color(d.x)})
+					.attr("stroke","black")
+					.attr("stroke-width",1)
+					.on('click',function(d,i){
+						console.log(i);
+						if(clicked==false){
+								clicked=true;
+							}
+							else{
+								clicked=false;
+							}
+						canvas.selectAll("rect").transition().attr("fill", function(d){
+							console.log("clickval: " + clicked);						
+							if(clicked==true){					
+								return color(d.y);
+							}
+							else{
+								return color(d.x);
+							}
+						})
+					})
+					.on('mouseover',function(d,i){
+						var cur_i=i;
+						canvas.selectAll("rect").style("stroke-width", function(d,i){
+							if((i%numrows)==(cur_i%numrows) || Math.floor(cur_i/numrows)==Math.floor(i/numrows)){
+								return 3;
+							}
+						})
+						canvas.selectAll("rect").style("stroke-opacity", function(d,i){
+							if((i%numrows)==(cur_i%numrows) || Math.floor(cur_i/numrows)==Math.floor(i/numrows)){
+								return .7;
+							}
+						});
+						console.log(i)
+					})
+					.on('mouseout',function(d,i){
+						canvas.selectAll("rect").style("stroke-width", 1)
+							.style("stroke-opacity",1);
+					})
+
+
+
+		})
+
+		</script>
+
+	</body>
+	
+</html>

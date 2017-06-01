@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>D3</title>
+    <script src="d3.min.js"></script>
+		<style>
+
+		</style>
+	</head>
+	<body>
+
+
+		<script>
+
+		var dataset = ["null"];
+		var size_mult = 2;
+		var size = 20 * size_mult;
+
+		
+		//function xscale(offset){
+		//	console.log(offset);
+			var scale = d3.scaleLinear()
+				.domain([1,5])
+				.range([-100,100*size_mult*2]);
+		//}
+
+
+		var margin = {top: 30, right: 20, bottom: 30, left: 50},
+		    width = 2000 - margin.left - margin.right,
+		    height = 150 - margin.top - margin.bottom;
+
+		var svg = d3.select("body")
+			.append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+    	.append("g")
+        .attr("transform", 
+              "translate(" + margin.left + "," + margin.top + ")");
+
+// define marker
+svg.append("svg:defs").selectAll("marker")
+    .data(["arrow"])
+  .enter().append("svg:marker")
+    .attr("id", String)
+    .attr("viewBox", "0 -5 10 10")
+    .attr("refX", 10)
+    .attr("refY", 0)
+    .attr("markerWidth", 10)
+    .attr("markerHeight", 10)
+    .attr("orient", "auto")
+    .append("svg:path")
+    .attr("d", "M0,-5L10,0L0,0");
+
+		var button = d3.select("body").append("input")
+		  .attr("type", "button")
+		  .attr("name", "add")
+		  .attr("value", "Add node")
+		  .attr("onclick", "addItem()"); 
+
+		var textbox = d3.select("body").append("input")
+		  .attr("type", "text")
+		  .attr("name", "textbox1")
+		  .attr("value", "")
+			.attr("id","textbox1"); 
+
+		/*var dropdown = d3.select("body").append("select")
+		  	.attr("name", "dropdown")
+		  	.attr("id", "dropdown")
+				.append("option")
+				//.attr("option-value","0")
+				.text("0");
+		*/
+		var dropdown = d3.select("body").append("select")
+			.attr("name", "dropdown")
+		 	.attr("id", "dropdown");
+		dropdown.selectAll("option")
+			.append("option")
+			.text("null");
+		var renderAll = function render(data,color){
+			var dlength = dataset.length;
+
+			var row = 50;
+
+
+			var options = dropdown.selectAll("option")
+				.data(dataset)	
+				.enter()
+				.append("option")
+				.text("0");
+
+			options
+				.text(function(d,i){return i})
+				.attr("value",function(d,i){return i});
+		
+			var rects = svg.selectAll("rect").data(dataset);
+			//enter
+			rects.enter().append("rect")
+				.attr("width",size*size_mult)
+				.attr("height",size)
+				.attr("fill", "blue")
+				.attr("fill-opacity",0.1)
+				.attr("stroke", "blue")
+				.attr("x",function(d,i){return scale(i+1)+50*size_mult;})
+				.attr("y",row);
+				
+			//update
+			rects
+				//if(scale > 250){ row = row+50; };
+				.attr("x",function(d,i){return scale(i+1)+50*size_mult;})
+				.style("stroke-opacity",1)
+				.attr("stroke", function(d,i){if(i+1==dlength){return "blue";}else{return "red";}})
+				.attr("fill", function(d,i){if(i+1==dlength){return "blue";}else{return "red";}})
+				.style("fill-opacity",0.1)
+				//.transition().duration(1000)
+				//	.style("fill-opacity",0.1)
+
+				.on('click',function(d,i){
+					var cur_ind = i;
+					console.log(cur_ind);
+					var t0 = svg.transition().duration(2000);
+					var t1 = svg.transition().delay(2000).duration(2000);
+					t0.selectAll("line")
+						.style("stroke-opacity",function(d,i){if(i==cur_ind){return 0}});
+					t1.selectAll("line")
+						.attr("x1", function(d,i){if(i>cur_ind){
+								return scale(i)+90*size_mult;
+						}
+						else{
+								return scale(i+1)+90*size_mult;
+						}})
+						.attr("x2", function(d,i){if(i>cur_ind){
+								return scale(i)+113*size_mult;
+						}
+						else{
+								return scale(i+1)+113*size_mult;
+						}});
+					t0.selectAll("text").style("opacity",function(d,i){if(i==cur_ind) return 0});
+					t1.selectAll("text")
+						.attr("x",function(d,i){if(i>cur_ind){
+							return scale(i)+50*size_mult+10;
+						}
+						else{
+							return scale(i+1)+50*size_mult+10;
+						}});
+					t0.selectAll("rect").style("stroke-opacity",function(d,i){if(i==cur_ind) return 0})
+						.style("fill-opacity",function(d,i){if(i==cur_ind) return 0});
+					t1.selectAll("rect")
+						.attr("x",function(d,i){if(i>cur_ind){
+							return scale(i)+50*size_mult;
+						}
+						else{
+							return scale(i+1)+50*size_mult;
+						}});
+
+					//arrow.transition().duration(2000).style("stroke-opacity",0);
+					//alltext.transition().duration(2000).style("opacity",0);	
+					dataset.splice(i,1)	
+					//d3.timeout(console.log("waiting..."),2000)
+					//render(dataset,"blue");
+
+				});
+			//exit
+			//rects.exit().remove();
+
+
+
+			var arrow = svg.selectAll("line").data(dataset);
+			//enter
+			arrow.enter().append("line")
+				.attr("stroke", "black")
+				.attr("stroke-width", 1)
+				.attr("x1", function(d,i){return scale(i)+90*size_mult;})
+				.attr("x2", function(d,i){return scale(i)+113*size_mult;})
+				.attr("y1", row+20)
+				.attr("y2", row+20)
+				.style("stroke-opacity",1);
+			//update
+			arrow
+				.style("stroke-opacity",1)
+				.attr("x1", function(d,i){return scale(i+1)+90*size_mult;})
+				.attr("x2", function(d,i){return scale(i+1)+113*size_mult;});
+			//exit
+			arrow.exit().remove();
+
+			var alltext = svg.selectAll("text").data(dataset);
+
+			//enter
+			alltext.enter().append("text")
+				.attr("x",function(d,i){return scale(i+1)+50*size_mult+10;})
+				.attr("y",row+15)
+				.text(function(d){return "val: "+d;})
+				.style("opacity",1);
+			//update
+			alltext
+				.attr("x",function(d,i){return scale(i+1)+50*size_mult+10;})
+				.attr("y",row+15)
+				.text(function(d){return "val: "+d;})
+				.style("opacity",1);
+			//exit
+			alltext.exit().remove();
+		}
+
+		dataset = [];
+		renderAll(dataset,"blue");
+  	//d3.csv("data.csv",function(data){
+		//	dataset = data;    //Once loaded, copy to dataset.
+    //	render;   
+    //});
+
+		function addItem(){
+			//var textbox1 = document.getElementById('textbox1');
+			var pos = document.getElementById("dropdown").selectedIndex;
+			dataset.splice(pos+1,0,textbox1.value);
+			renderAll(dataset,"red");
+			console.log(dataset);
+			console.log(pos);
+		}
+
+
+
+
+		</script>
+	</body>
+</html>
