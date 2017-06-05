@@ -27,6 +27,22 @@
     #canvas-element {
       border: solid 1px black;
     }
+    .axis path,
+    .axis line {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+    }
+
+    .axis text {
+        font: 12px sans-serif;
+    }
+
+    .line {
+        fill: none;
+        stroke: #219034;
+        stroke-width: 1px;
+    }
   </style>
 </head>
 
@@ -36,14 +52,14 @@
         <canvas id="canvas-element" class="plot"></canvas>
     </div>
     <div id="right">
+      <svg id="svg-element"></svg>
       <div id="info">
-            <p>Number of points in square: <span id="in-square"></span></p>
-            <p>Number of points in circle: <span id="in-circle"></span></p>
-            <p>Current estimate value of Pi: <span id="pi-estimate"></span></p>
-          	<p>Current error: <span id="pi-error"></span></p>
+            <p>Number of points in square: <span id="in-square">0</span></p>
+            <p>Number of points in circle: <span id="in-circle">0</span></p>
+            <p>Current estimate value of Pi: <span id="pi-estimate">0</span></p>
+          	<p>Current error: <span id="pi-error">0</span></p>
             <p>
               <button id="start-button">Start</button>
-              <button id="stop-button">Stop</button>
               <button id="reset-button">Reset</button>
           	</p>
         </div>
@@ -56,9 +72,9 @@
   var canvasArea = circleDiameter*circleDiameter;
 
   var margin = {top: 10, right: 20, bottom: 40, left: 60};
-  var lineWidth = 400 - margin.left - margin.right;
-  var lineHeight = 250 - margin.top - margin.bottom;
-
+  var errorPlotWidth = 400 - margin.left - margin.right;
+  var errorPlotHeight = 250 - margin.top - margin.bottom;
+  
   var maxPoints = 2500;
   var pointRadius = 4;
   var drawIntervalTime = 1;
@@ -67,7 +83,10 @@
   var pointsInCircle = 0;
   var estimatedPi = 0;
   var currentError = 0;
+  var count = 0;
   var running = false;
+
+  var errorPlotData = [];
 
   // create the canvas for drawing the circle
   var canvas = d3.select("#canvas-element")
@@ -84,18 +103,80 @@
   context.closePath();
   context.stroke();
   
+  //create error plot
+  var svg = d3.select("#svg-element")
+    .attr("width", errorPlotWidth + margin.left + margin.right)
+    .attr("height", errorPlotHeight + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+  var xScale = d3.scaleLinear()
+    .domain([0, maxPoints])
+    .range([0, errorPlotWidth]);
+  
+  var yScale = d3.scaleLinear()
+    .domain([0, 0.5])
+    .range([errorPlotHeight, 0])
+    .clamp(true);
+
+  var xAxis = d3.axisBottom()
+    .scale(xScale)
+    .ticks(7);
+
+  var yAxis = d3.axisLeft()
+    .scale(yScale);
+
+  svg.append("g")
+      .attr("class", "axis")
+      .append("text")
+      .attr("text-anchor", "middle")
+      .attr("x", (errorPlotWidth) / 2)
+      .attr("y", (errorPlotHeight + margin.top + margin.bottom) - 10)
+      .text("Number of Interations");
+
+  svg.append("g")
+        .attr("class", "axis")
+        .append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", -margin.left + 25)
+        .attr("x", -errorPlotHeight / 2)
+        .style("text-anchor", "middle")
+        .text("Error");
+
+
+  var errorLine = d3.line()
+      .x(function(d) { return d[0] })
+      .y(function(d) { return d[1] });
+
+  var lineSvg = svg.append("path")
+      .attr("class", "line")
+      .attr("d", errorLine(errorPlotData));
+
+  svg.append("g")
+      .attr("class", "axis")
+      .attr("transform", "translate(0," + errorPlotHeight + ")")
+      .call(xAxis);
+
+  svg.append("g")
+      .attr("class", "axis")
+      .call(yAxis);
+
   //setup buttons  
-  d3.select("#start-button").on("click", start);
-  d3.select("#stop-button").on("click", stop);
+  var startButton = d3.select("#start-button").on("click", start);
 	d3.select("#reset-button").on("click", reset);
   
-  function stop() {
+
+
+  function pause() {
     running = false;
+    startButton.on("click", start)
+    .text("Resume");
   }
     
   // start the simulation
   function start() {
-    var count = 0;
+    startButton.on("click", pause)
+      .text("Pause");
     running = true;
     var drawInterval = setInterval(function() {
       if(count > maxPoints || !running) {
@@ -104,6 +185,7 @@
       update(count);
       count++;
     }, 10);
+
   }
   
   //reset the simulation
@@ -121,8 +203,13 @@
   	pointsInCircle = 0;
   	estimatedPi = 0;
   	currentError = 0;
+    count = 0;
+    //clear error plot
+    errorPlotData = [];
+    lineSvg.attr("d", errorLine(errorPlotData));
     //clear text
     updateText();
+    startButton.text("Start");
   }
     
 	function update(count) {
@@ -144,8 +231,14 @@
 
     pointsInSquare++;
     estimatedPi = (pointsInCircle / pointsInSquare) * 4;
-    currentError = Math.PI - estimatedPi;
+    currentError = Math.abs(Math.PI - estimatedPi);
     
+    if(count % 10 === 0) {
+      errorPlotData.push([xScale(count), yScale(currentError)]);
+      lineSvg.attr("d", errorLine(errorPlotData));
+    }
+
+
     updateText();
   }    
     
