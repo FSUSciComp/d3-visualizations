@@ -50,7 +50,7 @@
       cursor: crosshair;
     }
 
-    .handle {
+    .meanSliderHandle {
       fill: #fff;
       stroke: #000;
       stroke-opacity: 0.5;
@@ -68,14 +68,13 @@
   var data = [];
     
   //generate points in gaussian
-  function getData(q_mean) {
+  function getData(q_mean, q_std) {
     data = [];
     var numPoints = 1000,
         a = -10,
         b = 10,
-        delta = (b - a)/(numPoints-1); 
-        q_std = 1,
-        p_mean_dist = 5,
+        delta = (b - a)/(numPoints-1) 
+        p_mean_dist = 6,
         p_std = 1; 
     
     for (var i = 0; i < numPoints; i++) {
@@ -92,7 +91,7 @@
     
   }  
     
-  getData(1);
+  getData(0, 1);
 
   function gaussian(x, mean, std) {
     var gaussianConstant = 1 / Math.sqrt(2 * Math.PI);
@@ -125,10 +124,18 @@
   var yScale = d3.scaleLinear()
     .range([height, 0]);
   
-  var sliderScale = d3.scaleLinear()
+  var meanSliderScale = d3.scaleLinear()
     .range([0,159])
     .domain([-10, 10])
     .clamp(true);
+
+  var stdSliderScale = d3.scaleLinear()
+    .range([0,159])
+    .domain([1, 100])
+    .clamp(true);
+
+
+
 
   xScale.domain(d3.extent(data, function(d) {
     return d.x;
@@ -166,13 +173,17 @@
     .append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
     
-  var slider = svg.append("g")
-      .attr("class", "slider")
+  var meanSlider = svg.append("g")
+      .attr("class", "meanSlider")
       .attr("transform", "translate(" + (margin.left-20) + "," + margin.top + ")");
+  
+  var stdSlider = svg.append("g")
+      .attr("class", "stdSlider")
+      .attr("transform", "translate(" + (margin.left-20) + "," + (margin.top+30) + ")");
 
   var sf = d3.format("0.5e");
 
-  slider.append("line")
+  meanSlider.append("line")
       .attr("class", "track")
       .attr("x1", 0)
       .attr("x2", 159)
@@ -181,11 +192,12 @@
     .select(function() { return this.parentNode.appendChild(this.cloneNode(true)); })
       .attr("class", "track-overlay")
       .call(d3.drag()
-          .on("start.interrupt", function() { slider.interrupt(); })
+          .on("start.interrupt", function() { meanSlider.interrupt(); })
           .on("start drag", function() { 
-            q_mean = sliderScale.invert(d3.event.x);
-            handle.attr("cx", sliderScale(q_mean));
-            getData(q_mean);
+            var q_mean = meanSliderScale.invert(d3.event.x);
+            meanSliderHandle.attr("cx", meanSliderScale(q_mean));
+            var q_std = stdSliderScale.invert(stdSliderHandle.attr("cx"));
+            getData(q_mean, q_std);
             svg.select("#q_line").datum(data).attr("d", line2);
             KL_pq = data.reduce(function(kl, item){
               return kl + item.p * Math.log(item.p/item.q);
@@ -198,9 +210,42 @@
             svg.select("#kl_qp_label").text("KL(q,p) = " + sf(KL_qp));
           }));
 
-  var handle = slider.insert("circle", ".track-overlay")
-      .attr("class", "handle")
-      .attr("r", 9); 
+  stdSlider.append("line")
+      .attr("class", "track")
+      .attr("x1", 0)
+      .attr("x2", 159)
+    .select(function() { return this.parentNode.appendChild(this.cloneNode(true)); })
+      .attr("class", "track-inset")
+    .select(function() { return this.parentNode.appendChild(this.cloneNode(true)); })
+      .attr("class", "track-overlay")
+      .call(d3.drag()
+          .on("start.interrupt", function() { stdSlider.interrupt(); })
+          .on("start drag", function() { 
+            var q_std = stdSliderScale.invert(d3.event.x);
+            stdSliderHandle.attr("cx", stdSliderScale(q_std));
+            var q_mean = meanSliderScale.invert(meanSliderHandle.attr("cx"));
+            getData(q_mean, q_std);
+            svg.select("#q_line").datum(data).attr("d", line2);
+            KL_pq = data.reduce(function(kl, item){
+              return kl + item.p * Math.log(item.p/item.q);
+            }, 0);
+
+            KL_qp = data.reduce(function(kl, item){
+              return kl + item.q * Math.log(item.q/item.p);
+            }, 0);
+            svg.select("#kl_pq_label").text("KL(p,q) = " + sf(KL_pq));
+            svg.select("#kl_qp_label").text("KL(q,p) = " + sf(KL_qp));
+          }));
+
+  var meanSliderHandle = meanSlider.insert("circle", ".track-overlay")
+      .attr("class", "meanSliderHandle")
+      .attr("r", 9)
+      .attr("cx", meanSliderScale(0)); 
+
+  var stdSliderHandle = stdSlider.insert("circle", ".track-overlay")
+      .attr("class", "stdSliderHandle")
+      .attr("r", 9)
+      .attr("cx", stdSliderScale(1)); 
 
   svg.append("g")
     .attr("class", "x axis")
