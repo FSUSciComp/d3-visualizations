@@ -20,6 +20,11 @@
       width: 50%;
       text-align: left;
     }
+
+	.dot{
+	  fill: steelblue;
+	}
+	
   </style>
 </head>
 
@@ -35,7 +40,7 @@
 </div>
 <script>
   var width = 400;
-  var height = 400;
+  var height = 400
   var margin = {top: 40, right: 40, bottom: 40, left: 60};
   var lineWidth = width - margin.left - margin.right;
   var lineHeight = height - margin.top - margin.bottom;
@@ -45,7 +50,8 @@
   d3.select("#Update-button").on("click",Update);
   
   
-  var Vals = [[0,0],[1,2],[2,3],[4,5],[5,6]];
+  //var Vals = [[0,0],[1,2],[2,3],[4,5],[5,6]];
+  var Vals = [[1,0.2],[2,0.4],[3,0.26],[4,.67],[5,.87]];
   //Create Data
   var dataVals = Vals.map(function(d){
 	return{
@@ -64,7 +70,8 @@
   var lineData = d3.line()
 	.x(function(d){return xScale(d.x);})
 	.y(function(d){return yScale(d.y);})
-	.curve(d3.curveBasis);
+	.curve(d3.curveMonotoneX);
+	
   //build svg element
   var svgContainer = d3.select("#left").append("svg")
 	.attr("width",width)
@@ -74,6 +81,7 @@
 	.attr("stroke","blue")
 	.attr("stroke-width",3)
 	.attr("fill","none");
+	
   //Build axis
   var xAxis = d3.axisBottom(xScale)//.tickFormat(function(d){return d.x;});
   var yAxis = d3.axisLeft(yScale);
@@ -84,18 +92,29 @@
   var yAxisGroup = svgContainer.append("g")
 	.attr("transform","translate("+margin.left+",0)")
 	.call(yAxis);
+	
   //Display Coordinates on graph
-  var text = svgContainer.selectAll("text")
+  //ADD CIRCLES
+  var node = svgContainer.selectAll(".circle")
 	.data(dataVals)
 	.enter()
-	.append("text");
-  var textLabels = text
+	.append("g");
+  node.append("circle")
+    .attr("class","dot")
+	.attr("cx",function(d){return xScale(d.x);})
+	.attr("cy",function(d){return yScale(d.y);})
+	.attr("r","6px");
+  node.append("text")
+    .attr("class","dotText")
 	.attr("x",function(d){return xScale(d.x)-margin.left/2;})
 	.attr("y",function(d){return yScale(d.y)-margin.top/2;})
 	.text(function(d){return "( "+d.x+" , "+d.y+" )"})
 	.attr("font-family","sans-serif")
 	.attr("font-size","12px")
 	.attr("fill","blue");
+  
+  var pointFormat = d3.format(".2e");
+
   //Update Function	
   function Update(){
 	for(var i=0; i<dataVals.length;i++){
@@ -107,6 +126,17 @@
 	//transition to new data and axis values
 	yAxisGroup.transition().duration(1000).call(yAxis);
 	linegraph.transition().duration(1000).attr("d",lineData(dataVals));
+	//Update points
+	d3.selectAll(".dot").data(dataVals)
+	  .transition().duration(1000)
+	  .attr("cy",function(d){return yScale(d.y);})
+	  .attr("cx",function(d){return xScale(d.x);});
+	d3.selectAll(".dotText").data(dataVals)
+	  .transition().duration(1000)
+	  .attr("x",function(d){return xScale(d.x)-margin.left/2;})
+	  .attr("y",function(d,i){return yScale(d.y)-margin.top/2-(i%2)*20;})
+	  .text(function(d){return "( "+pointFormat(d.x)+" , "+pointFormat(d.y)+" )"});
+	
   }
   
   </script>
