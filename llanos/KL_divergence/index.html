@@ -64,50 +64,76 @@
 </body>
 
 <script type="text/javascript">
-  //setting up empty data array
-  var data = [];
-    
-  //generate points in gaussian
-  function getData(q_mean, q_std) {
-    data = [];
-    var numPoints = 1000,
-        a = -10,
-        b = 10,
-        delta = (b - a)/(numPoints-1) 
-        p_mean_dist = 6,
-        p_std = 1; 
-    
-    for (var i = 0; i < numPoints; i++) {
-      x = a + i*delta;
-      p = gaussian(x, -p_mean_dist, p_std) + gaussian(x, p_mean_dist, p_std);
-      q = gaussian(x, q_mean, q_std);
-      el = {
-        "x": x,
-        "p": p,
-        "q": q
-      };
-      data.push(el);
+  var numPoints = 1000;
+  var domain_start = -10;
+  var domain_end = 10;
+  var q_mean = 0;
+  var q_std = 1;
+  var p1_mean = -6;
+  var p1_std = 1;
+  var p2_mean = 6;
+  var p2_std = 1;
+  var domain = linspace(domain_start, domain_end, numPoints);
+  var p = sumArrays(gaussianPDF(domain, p1_mean, p1_std), gaussianPDF(domain, p2_mean, p2_std));
+  var q = gaussianPDF(domain, q_mean, q_std);
+
+  function linspace(start, stop, numPoints){
+    var delta = (stop - start)/(numPoints-1)
+    var samples = []
+    for (var i = 0; i < numPoints; i++){
+      samples.push(start + i*delta); 
     }
-    
-  }  
-    
-  getData(0, 1);
+    return samples;
+  }
 
-  function gaussian(x, mean, std) {
+  function gaussianPDF(x, mean, std) {
     var gaussianConstant = 1 / Math.sqrt(2 * Math.PI);
+    if (Array.isArray(x)){
+      var numPoints = x.length;
+      var pdf = [];
+      for (var i = 0; i < numPoints; i++){
+        var exponent = (x[i] - mean) / std;
+        pdf.push(gaussianConstant * Math.exp(-.5 * exponent * exponent) / std); 
+      }
+      return pdf;
+    } else {
+      var exponent = (x - mean) / std;
+      return gaussianConstant * Math.exp(-.5 * exponent * exponent) / std;
+    }
+  }
 
-    x = (x - mean) / std;
-    return gaussianConstant * Math.exp(-.5 * x * x) / std;
-  };
+  function klDiv(p, q) {
+    if (p.length != q.length) {
+      return 0;
+    }
+    var numPoints = p.length;
+    var kl = 0;
+    for (var i = 0; i < numPoints; i++) {
+      kl = kl + p[i] * Math.log(p[i]/q[i])
+    }
+    return kl;
+  }
+  
+  function sumArrays(a, b) {
     
-  //calculate KL divergences  
-  var KL_pq = data.reduce(function(kl, item){
-    return kl + item.p * Math.log(item.p/item.q);
-  }, 0);
+    if (a.length != b.length) {
+      return 0;
+    }
 
-  var KL_qp = data.reduce(function(kl, item){
-    return kl + item.q * Math.log(item.q/item.p);
-  }, 0);
+    var numPoints = a.length;
+    var sum = [];
+    for (var i = 0; i < numPoints; i++) {
+      sum.push(a[i] + b[i]);
+    }
+    return sum;
+  }
+ 
+  function update() {
+    q = gaussianPDF(domain, q_mean, q_std);
+    svg.select("#q_line").datum(d3.zip(domain, q)).attr("d", line2);
+    svg.select("#kl_pq_label").text("KL(p,q) = " + sf(klDiv(p,q)));
+    svg.select("#kl_qp_label").text("KL(q,p) = " + sf(klDiv(q,p)));
+  }
 
   var margin = {
     top: 20,
@@ -119,10 +145,12 @@
     height = 500 - margin.top - margin.bottom;
 
   var xScale = d3.scaleLinear()
-    .range([0, width]);
+    .range([0, width])
+    .domain([-10, 10]);
 
   var yScale = d3.scaleLinear()
-    .range([height, 0]);
+    .range([height, 0])
+    .domain([0, 0.5]);
   
   var meanSliderScale = d3.scaleLinear()
     .range([0,159])
@@ -133,17 +161,6 @@
     .range([0,159])
     .domain([1, 100])
     .clamp(true);
-
-
-
-
-  xScale.domain(d3.extent(data, function(d) {
-    return d.x;
-  }));  
-
-  yScale.domain(d3.extent(data, function(d) {
-    return d.p;
-  }));
     
   var xAxis = d3.axisBottom()
     .scale(xScale);
@@ -153,17 +170,17 @@
 
   var line1 = d3.line()
     .x(function(d) {
-      return xScale(d.x);
+      return xScale(d[0]);
     })
     .y(function(d) {
-      return yScale(d.p);
+      return yScale(d[1]);
     });
   var line2 = d3.line()
     .x(function(d) {
-      return xScale(d.x);
+      return xScale(d[0]);
     })
     .y(function(d) {
-      return yScale(d.q);
+      return yScale(d[1]);
     });  
 
 
@@ -194,20 +211,9 @@
       .call(d3.drag()
           .on("start.interrupt", function() { meanSlider.interrupt(); })
           .on("start drag", function() { 
-            var q_mean = meanSliderScale.invert(d3.event.x);
+            q_mean = meanSliderScale.invert(d3.event.x);
             meanSliderHandle.attr("cx", meanSliderScale(q_mean));
-            var q_std = stdSliderScale.invert(stdSliderHandle.attr("cx"));
-            getData(q_mean, q_std);
-            svg.select("#q_line").datum(data).attr("d", line2);
-            KL_pq = data.reduce(function(kl, item){
-              return kl + item.p * Math.log(item.p/item.q);
-            }, 0);
-
-            KL_qp = data.reduce(function(kl, item){
-              return kl + item.q * Math.log(item.q/item.p);
-            }, 0);
-            svg.select("#kl_pq_label").text("KL(p,q) = " + sf(KL_pq));
-            svg.select("#kl_qp_label").text("KL(q,p) = " + sf(KL_qp));
+            update();
           }));
 
   stdSlider.append("line")
@@ -221,20 +227,9 @@
       .call(d3.drag()
           .on("start.interrupt", function() { stdSlider.interrupt(); })
           .on("start drag", function() { 
-            var q_std = stdSliderScale.invert(d3.event.x);
+            q_std = stdSliderScale.invert(d3.event.x);
             stdSliderHandle.attr("cx", stdSliderScale(q_std));
-            var q_mean = meanSliderScale.invert(meanSliderHandle.attr("cx"));
-            getData(q_mean, q_std);
-            svg.select("#q_line").datum(data).attr("d", line2);
-            KL_pq = data.reduce(function(kl, item){
-              return kl + item.p * Math.log(item.p/item.q);
-            }, 0);
-
-            KL_qp = data.reduce(function(kl, item){
-              return kl + item.q * Math.log(item.q/item.p);
-            }, 0);
-            svg.select("#kl_pq_label").text("KL(p,q) = " + sf(KL_pq));
-            svg.select("#kl_qp_label").text("KL(q,p) = " + sf(KL_qp));
+            update();
           }));
 
   var meanSliderHandle = meanSlider.insert("circle", ".track-overlay")
@@ -257,18 +252,17 @@
     .call(yAxis);
 
   svg.append("path")
-    .datum(data)
+    .datum(d3.zip(domain, p))
     .attr("class", "line")
     .attr("d", line1);
     
   svg.append("path")
-    .datum(data)
+    .datum(d3.zip(domain, q))
     .attr("class", "line")
     .attr("id", "q_line")
     .style("stroke", "red")
     .attr("d", line2);
     
-
   var myText = svg.append("text")
     .attr("x", 0.8*width)
     .attr("y", 2)
@@ -276,8 +270,8 @@
     .attr("class", "myLabel")
     .attr("id", "kl_pq_label")
     .attr("font-size", "20px")
-    .text("KL(p,q) = " + sf(KL_pq));  
-    
+    .text("KL(p,q) = " + sf(klDiv(p,q)));  
+
   var myText = svg.append("text")
     .attr("x", 0.8*width)
     .attr("y", 25)
@@ -285,8 +279,7 @@
     .attr("class", "myLabel")
     .attr("id", "kl_qp_label")
     .attr("font-size", "20px")
-    .text("KL(q,p) = " + sf(KL_qp)); 
-  
+    .text("KL(q,p) = " + sf(klDiv(q,p))); 
 </script>
 
 </html>
