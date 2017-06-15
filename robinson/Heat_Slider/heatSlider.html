@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<head>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+</head>
+<style>
+
+  body { margin:0;position:fixed;top:0;right:0;bottom:0;left:0;}
+
+  #left {
+    float: left;
+    width: 50%;
+    text-align: right;
+  }
+
+  #right {
+    float: right;
+    width: 50%;
+    text-align:left;
+  }
+
+  .dot {
+    fill: steelblue;
+  }
+
+  .ticks{
+    font: 10px sans-serif;
+  }
+
+  .track,
+  .track-inset,
+  .track-overlay{
+    stroke-linecap: round;
+  }
+
+  .track{
+    stroke: #000;
+    stroke-opacity: 0.2;
+    stroke-width: 10px;
+  }
+  
+  .track-inset{
+    stroke: #ddd;
+    stroke-width: 8px;
+  }
+
+  .track-overlay{
+    pointer-events: stroke;
+    stroke-width: 50px;
+    stroke: transparent;
+    cursor: crosshair;
+  }
+
+  .handle{
+    fill: #fff;
+    stroke: #000;
+    stroke-opacity: 0.5;
+    stroke-width: 1.25px;
+  }
+
+</style>
+
+<body>
+
+<script>
+  var margin = {top: 50, bottom: 50, left: 50, right: 50}; 
+  var svg = d3.select("body").append("svg")
+      .attr("width",800)
+      .attr("height",600);
+  var width = +svg.attr("width") - margin.left - margin.right,
+      height = +svg.attr("height") - margin.top - margin.bottom;
+ 
+  var t_final = 2.0,
+      n_Sol = 49,
+      dx_Sol = 20./(n_Sol-1);          
+  var initialCond = [],
+      solutionFinal = [];
+
+  var xScale = d3.scaleLinear()
+      .range([+margin.left,width-margin.right])
+      .domain([-10,10]);
+  var yScale = d3.scaleLinear()
+      .range([(+height-margin.bottom-100),margin.top])
+      .domain([0,1]);
+      
+  var xAxis = d3.axisBottom(xScale),
+      yAxis = d3.axisLeft(yScale);
+
+  var yAxisGroup = svg.append("g")
+      .attr("class","yaxis")
+      .attr("transform","translate("+(width/2+margin.left)+",0)")//Shift right
+      .call(yAxis);
+  var xAxisGroup = svg.append("g")
+      .attr("class","xaxis")
+      .attr("transform","translate("+margin.left+"," + (height-margin.bottom-100) +
+          ")")//Shift down
+      .call(xAxis);
+
+  //Build Initial Condition and Solution
+  for(var i=0; i<n_Sol;i++){
+    var x = -10. +dx_Sol*i;
+    var yI = Solution(x,0);
+    var yF = Solution(x,t_final);
+    var tupleI = {
+      "x":x,
+      "y":yI
+    };
+    var tupleF = {
+      "x":x,
+      "y":yF
+    };
+    initialCond.push(tupleI);
+    solutionFinal.push(tupleF);
+  }
+  console.log(solutionFinal[0].y); 
+
+  var lineFormat = d3.line()
+  .x(function(d){return xScale(d.x)})
+  .y(function(d){return yScale(d.y)})
+      .curve(d3.curveMonotoneX);
+  //Plot IC and FS
+  var IC = svg.append("path")
+      .attr("class","Initial Condition")
+      .attr("d",lineFormat(initialCond))
+      .attr("stroke","blue")
+      .attr("stroke-width",3)
+      .attr("fill","none")
+      .attr("transform","translate("+(margin.left)+",0)");//Shift right
+  var FS = svg.append("path")
+      .attr("class","Exact Solution")
+      .attr("d",lineFormat(solutionFinal))
+      .attr("stroke","green")
+      .attr("stroke-width",3)
+      .attr("fill","none")
+      .attr("transform","translate("+(margin.left)+",0)");//Shift right
+  var curSol = svg.append("path")
+      .attr("class","Current Solution")
+      .attr("d",lineFormat(initialCond))
+      .attr("stroke","blue")
+      .attr("stroke-width",3)
+      .attr("fill","none")
+      .attr("transform","translate("+(margin.left)+",0)");//Shift right
+
+//DT SLIDER
+  var dt_min = 1E-3,
+      dt_max = 1E0,
+      dtFormat = d3.format(".1e");
+  var sliderScale = d3.scaleLog()
+      .domain([dt_min,dt_max])
+      .range([margin.left, width-margin.right])
+      .clamp(true);
+
+  var dtSlider = svg.append("g")
+      .attr("class","slider")
+      .attr("transform","translate("+margin.left+","+(height-margin.bottom)+")");
+
+  dtSlider.append("line")
+      .attr("class","track")
+      .attr("x1",sliderScale.range()[0])
+      .attr("x2",sliderScale.range()[1])
+    .select(function() {return this.parentNode.appendChild(this.cloneNode(true));})
+      .attr("class","track-inset")
+    .select(function(){return this.parentNode.appendChild(this.cloneNode(true));})
+      .attr("class","track-overlay")
+      .call(d3.drag()
+          .on("start.interrupt",function(){dtSlider.interrupt()})
+          .on("start drag", function()
+            {sliding(sliderScale.invert(d3.event.x))})
+          .on("end",
+              function(){update(sliderScale.invert(d3.event.x))}));
+
+  dtSlider.insert("g",".track-overlay")
+      .attr("class","ticks")
+      .attr("transform","translate(0,"+18+")")
+    .selectAll("text")
+    .data(sliderScale.ticks(3))
+    .enter().append("text")
+      .attr("x",sliderScale)
+      .attr("text-anchor","middle")
+      .text(function(d) {return dtFormat(d);});
+
+  var handle = dtSlider.insert("circle",".track-overlay")
+      .attr("class","handle")
+      .attr("cx",margin.left)
+      .attr("r",8);
+//DT SLIDER      
+
+  function sliding(h){
+    handle.attr("cx",sliderScale(h));
+  }
+
+  function update(h){
+    var dt = h;
+    var N = 31;
+    var dx = 20./(N-1);
+    var constant = dt/dx/dx;
+    var sol = [];
+    for(var i=0; i<N; i++){ 
+      var x = -10. + dx*i;
+      var y = Solution(x,0);
+      var tuple = {
+        "x":x,
+        "y":y
+      };
+      sol.push(tuple);
+    }
+    var steps = parseInt(t_final/dt);
+    var time = 0.0;
+    //reset curSol
+    curSol.attr("d",lineFormat(sol));
+    for(var j =0; j<steps; j++){
+
+      var solP = sol.slice();
+    
+      for(var i=1;i<N-1;i++){
+        sol[i].y= solP[i].y- constant*(2*solP[i].y-solP[i-1].y-solP[i+1].y);
+      }
+      time += dt;
+      curSol.transition()
+        .duration(2000)
+        .attr("d",lineFormat(sol));
+
+    }
+  }
+
+  function Solution(x,t){
+    return 1./Math.pow(1.+4*t,0.5)*Math.exp(-x*x/(1+4*t));
+  }
+  
+        
+      
+</script>
+</body>
