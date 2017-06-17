@@ -25,10 +25,21 @@ function linspace(start, stop, numPoints){
 
   function klDiv(p, q) {
     if (p.length != q.length) {
+      // Arrays are not the same length!
       return 0;
     }
+
     var numPoints = p.length;
     var kl = 0;
+    
+    // normalize probability distributions
+    pSum = d3.sum(p)
+    qSum = d3.sum(q)
+    for (var i = 0; i < numPoints; i++) {
+        p[i] /= pSum;
+        q[i] /= qSum;
+    }
+    // calculate kl divergence
     for (var i = 0; i < numPoints; i++) {
       kl = kl + p[i] * Math.log(p[i]/q[i])
     }
