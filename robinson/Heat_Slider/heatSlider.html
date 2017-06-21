@@ -59,12 +59,18 @@
     stroke-width: 1.25px;
   }
 
+  .point{
+    r: 4px;
+
+  }
+
 </style>
 
 <body>
 
 <script>
   var margin = {top: 50, bottom: 50, left: 50, right: 50}; 
+  var TRANSITION = 600;
   var svg = d3.select("body").append("svg")
       .attr("width",800)
       .attr("height",600);
@@ -74,6 +80,10 @@
   var t_final = 2.0,
       n_Sol = 49,
       dx_Sol = 20./(n_Sol-1);          
+  var Ns ={
+      "nPrev" : n_Sol,
+      "n" : n_Sol
+  };
   var initialCond = [],
       solutionFinal = [];
 
@@ -83,7 +93,10 @@
   var yScale = d3.scaleLinear()
       .range([(+height-margin.bottom-100),margin.top])
       .domain([0,1]);
-      
+  var colorScale = d3.scaleLog()
+      .domain([1E-3,0.2])
+      .range(["green","red"])
+      .clamp(true);
   var xAxis = d3.axisBottom(xScale),
       yAxis = d3.axisLeft(yScale);
 
@@ -123,7 +136,7 @@
   var IC = svg.append("path")
       .attr("class","Initial Condition")
       .attr("d",lineFormat(initialCond))
-      .attr("stroke","blue")
+      .attr("stroke","black")
       .attr("stroke-width",3)
       .attr("fill","none")
       .attr("transform","translate("+(margin.left)+",0)");//Shift right
@@ -135,15 +148,26 @@
       .attr("fill","none")
       .attr("transform","translate("+(margin.left)+",0)");//Shift right
   var curSol = svg.append("path")
-      .attr("class","Current Solution")
+      .attr("class","CurrentSolution")
       .attr("d",lineFormat(initialCond))
       .attr("stroke","blue")
       .attr("stroke-width",3)
       .attr("fill","none")
       .attr("transform","translate("+(margin.left)+",0)");//Shift right
 
+//Draw points for current solution
+  svg.append("g")
+      .attr("class","points")
+      .selectAll(".circle")
+      .data(initialCond)
+      .enter()
+      .append("circle")
+        .attr("class","point")
+        .attr("r","4px")
+        .attr("cx",function(d){return xScale(d.x)+margin.left})
+        .attr("cy",function(d){return yScale(d.y)});
 //DT SLIDER
-  var dt_min = 1E-3,
+  var dt_min = 1E-2,
       dt_max = 1E0,
       dtFormat = d3.format(".1e");
   var sliderScale = d3.scaleLog()
@@ -166,33 +190,137 @@
       .call(d3.drag()
           .on("start.interrupt",function(){dtSlider.interrupt()})
           .on("start drag", function()
-            {sliding(sliderScale.invert(d3.event.x))})
+            {dtSliding(sliderScale.invert(d3.event.x))})
           .on("end",
-              function(){update(sliderScale.invert(d3.event.x))}));
+              function(){calculate()}));
 
   dtSlider.insert("g",".track-overlay")
       .attr("class","ticks")
       .attr("transform","translate(0,"+18+")")
     .selectAll("text")
-    .data(sliderScale.ticks(3))
+    .data(sliderScale.ticks(2))
     .enter().append("text")
       .attr("x",sliderScale)
       .attr("text-anchor","middle")
       .text(function(d) {return dtFormat(d);});
 
-  var handle = dtSlider.insert("circle",".track-overlay")
-      .attr("class","handle")
+  var dtHandle = dtSlider.insert("circle",".track-overlay")
+      .attr("class","dtHandle")
       .attr("cx",margin.left)
       .attr("r",8);
+  var dtHandleLabel = dtSlider.insert("g",".track-overlay")
+      .attr("class","dtHandleLabel")
+
+  var pos = d3.selectAll(".dtHandle").attr("cx");
+  dtHandleLabel.append("text")
+      .attr("class","dtText")
+      .attr("x",+pos-16)
+      .attr("y", -10)
+      .text(dtFormat(sliderScale.invert(pos)));
+  dtHandleLabel.append("text")
+      .attr("x",-40)
+      .attr("y",3)
+      .attr("font-size","12px")
+      .style("font-weight","bold")
+      .text("Timestep Size:");
+//DX slider
+  var nMax = 120,
+      nMin = 10,
+      dxFormat = d3.format("d");
+  var dxSliderScale = d3.scaleLinear()
+      .domain([nMin,nMax])
+      .range([margin.left, width-margin.right])
+      .clamp(true);
+
+  var dxSlider = svg.append("g")
+      .attr("class","dxSlider")
+      .attr("transform","translate("+margin.left+","+(height-margin.bottom-60)+")");
+
+  dxSlider.append("line")
+      .attr("class","track")
+      .attr("x1",dxSliderScale.range()[0])
+      .attr("x2",dxSliderScale.range()[1])
+    .select(function() {return this.parentNode.appendChild(this.cloneNode(true));})
+      .attr("class","track-inset")
+    .select(function(){return this.parentNode.appendChild(this.cloneNode(true));})
+      .attr("class","track-overlay")
+      .call(d3.drag()
+          .on("start.interrupt",function(){dxSlider.interrupt()})
+          .on("start drag", function()
+            {dxSliding(dxSliderScale.invert(d3.event.x))})
+          .on("end",
+              function(){updateDX(dxSliderScale.invert(d3.event.x))}));
+
+  dxSlider.insert("g",".track-overlay")
+      .attr("class","ticks")
+      .attr("transform","translate(0,"+18+")")
+    .selectAll("text")
+    .data(dxSliderScale.ticks(11))
+    .enter().append("text")
+      .attr("x",dxSliderScale)
+      .attr("text-anchor","middle")
+      .text(function(d) {return dxFormat(d);});
+
+  var dxHandle = dxSlider.insert("circle",".track-overlay")
+      .attr("class","dxHandle")
+      .attr("cx",margin.left)
+      .attr("r",8);
+  var dxHandleLabel = dxSlider.insert("g",".track-overlay")
+      .attr("class","dxHandleLabel")
+
+  var dxpos = d3.selectAll(".dxHandle").attr("cx");
+  dxHandleLabel.append("text")
+      .attr("class","dxText")
+      .attr("x",+dxpos-8)
+      .attr("y", -10)
+      .text(dxFormat(dxSliderScale.invert(dxpos)));
+  dxHandleLabel.append("text")
+      .attr("x",-40)
+      .attr("y",3)
+      .attr("font-size","10px")
+      .style("font-weight","bold")
+      .text("Number of Points:");
+  //Add text labels to plot
+  var solutionTime = svg.append("text")
+      .attr("class","time")
+      .attr("transform","translate("+(width-margin.right-20)+","+(margin.top
+              +20)+")")
+      .text("Time: 0s");
+
+    
 //DT SLIDER      
 
-  function sliding(h){
-    handle.attr("cx",sliderScale(h));
+  function dtSliding(h){
+    dtHandle.attr("cx",sliderScale(h));
+    d3.selectAll(".dtText")
+      .attr("x",sliderScale(h)-16)
+      .text(dtFormat(h));
+  
+
+  }
+  function dxSliding(h){
+    dxHandle.attr("cx",dxSliderScale(h));
+    d3.selectAll(".dxText")
+      .attr("x",dxSliderScale(h)-8)
+      .text(dxFormat(h));
+  
+
   }
 
-  function update(h){
-    var dt = h;
-    var N = 31;
+  function updateDX(h){
+    var holder = Ns.n;
+    var roundedN = Math.round(h);
+    Ns.nPrev = holder;
+    Ns.n = roundedN;
+    //Round Slider Value to Nearest Int
+    dxHandle.attr("cx",dxSliderScale(Math.round(h)));
+    calculate();
+  }
+
+  function calculate(){
+    //Clear current function
+    var dt = sliderScale.invert(d3.selectAll(".dtHandle").attr("cx"));
+    var N = dxSliderScale.invert(d3.selectAll(".dxHandle").attr("cx")); 
     var dx = 20./(N-1);
     var constant = dt/dx/dx;
     var sol = [];
@@ -208,7 +336,6 @@
     var steps = parseInt(t_final/dt);
     var time = 0.0;
     //reset curSol
-    curSol.attr("d",lineFormat(sol));
     for(var j =0; j<steps; j++){
 
       var solP = sol.slice();
@@ -217,18 +344,44 @@
         sol[i].y= solP[i].y- constant*(2*solP[i].y-solP[i-1].y-solP[i+1].y);
       }
       time += dt;
-      curSol.transition()
-        .duration(2000)
-        .attr("d",lineFormat(sol));
-
     }
+    var tDiff = t_final - time;
+    solP = sol.slice();
+    for(var i=1;i<N-1;i++){
+      sol[i].y= solP[i].y- tDiff/dx/dx*(2*solP[i].y-solP[i-1].y-solP[i+1].y);
+    }
+    time += tDiff;
+    //Update Points
+
+    d3.selectAll(".time")
+      .text("Time: "+time+"s");
+    curSol.transition()
+      .duration(1500)
+      .attr("d",lineFormat(sol));
+    var points = svg.select(".points").selectAll(".point")
+        .data(sol);
+    points.exit().remove();
+    points.enter() 
+        .append("circle")
+        .attr("class","point") 
+        .attr("r",0)
+        //Make points transition from lower right
+        .attr("cx",function(d,i){
+            return i/parseFloat(N-1)*600 + parseInt(margin.left)})
+        .attr("cy",function(d){return margin.top});
+    svg.select(".points").selectAll(".point").data(sol)
+        .attr("r", "4px")
+        .transition().duration(1500)
+        .attr("cx",function(d){return xScale(d.x)+margin.left})
+        .attr("cy",function(d){return yScale(d.y)})
+        .style("fill",function(d){return colorScale(Math.abs(d.y-Solution(d.x,2.0)))});
+    d3.selectAll(".point")    
   }
 
   function Solution(x,t){
     return 1./Math.pow(1.+4*t,0.5)*Math.exp(-x*x/(1+4*t));
   }
   
-        
       
 </script>
 </body>
