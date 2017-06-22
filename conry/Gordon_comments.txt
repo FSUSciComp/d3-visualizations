@@ -1,0 +1,5 @@
+Thur June 22, 2017,1 pm
+- no description
+- some files do not work
+- your README file is empty
+  - it should contain the state of every one of your programs
