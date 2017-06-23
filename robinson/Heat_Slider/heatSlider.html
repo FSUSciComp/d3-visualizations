@@ -167,7 +167,7 @@
         .attr("cx",function(d){return xScale(d.x)+margin.left})
         .attr("cy",function(d){return yScale(d.y)});
 //DT SLIDER
-  var dt_min = 1E-2,
+  var dt_min = 1E-3,
       dt_max = 1E0,
       dtFormat = d3.format(".1e");
   var sliderScale = d3.scaleLog()
@@ -198,7 +198,7 @@
       .attr("class","ticks")
       .attr("transform","translate(0,"+18+")")
     .selectAll("text")
-    .data(sliderScale.ticks(2))
+    .data(sliderScale.ticks(3))
     .enter().append("text")
       .attr("x",sliderScale)
       .attr("text-anchor","middle")
@@ -295,7 +295,7 @@
     d3.selectAll(".dtText")
       .attr("x",sliderScale(h)-16)
       .text(dtFormat(h));
-  
+    calculate(); 
 
   }
   function dxSliding(h){
@@ -313,14 +313,15 @@
     Ns.nPrev = holder;
     Ns.n = roundedN;
     //Round Slider Value to Nearest Int
-    dxHandle.attr("cx",dxSliderScale(Math.round(h)));
+    dxHandle.attr("cx",dxSliderScale(roundedN));
     calculate();
   }
 
   function calculate(){
     //Clear current function
     var dt = sliderScale.invert(d3.selectAll(".dtHandle").attr("cx"));
-    var N = dxSliderScale.invert(d3.selectAll(".dxHandle").attr("cx")); 
+    var N =
+      Math.round(dxSliderScale.invert(d3.selectAll(".dxHandle").attr("cx")));
     var dx = 20./(N-1);
     var constant = dt/dx/dx;
     var sol = [];
@@ -355,8 +356,9 @@
 
     d3.selectAll(".time")
       .text("Time: "+time+"s");
-    curSol.transition()
-      .duration(1500)
+    curSol
+     // .transition()
+     // .duration(1500)
       .attr("d",lineFormat(sol));
     var points = svg.select(".points").selectAll(".point")
         .data(sol);
@@ -365,23 +367,21 @@
         .append("circle")
         .attr("class","point") 
         .attr("r",0)
-        //Make points transition from lower right
+        //Make points transition from upper right
         .attr("cx",function(d,i){
             return i/parseFloat(N-1)*600 + parseInt(margin.left)})
         .attr("cy",function(d){return margin.top});
     svg.select(".points").selectAll(".point").data(sol)
         .attr("r", "4px")
-        .transition().duration(1500)
+      //  .transition().duration(1500)
         .attr("cx",function(d){return xScale(d.x)+margin.left})
         .attr("cy",function(d){return yScale(d.y)})
         .style("fill",function(d){return colorScale(Math.abs(d.y-Solution(d.x,2.0)))});
-    d3.selectAll(".point")    
   }
 
   function Solution(x,t){
     return 1./Math.pow(1.+4*t,0.5)*Math.exp(-x*x/(1+4*t));
   }
-  
-      
 </script>
+
 </body>
