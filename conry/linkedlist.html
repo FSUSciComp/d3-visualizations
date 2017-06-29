@@ -9,7 +9,14 @@
 		</style>
 	</head>
 	<body>
-
+<div id='top'>
+<p>
+<br>This example is a graphical implementation of a linked list.
+<br>Pressing the add node button will add whatever is in the textbox to the linked list which is stored as a javascript array.
+<br>The drop down box is a dynamically updated d3 element that selects where the new text entry will be added to our linked list.
+<br>Clicking on any of the generated rectangles removes them from the linked list and transitions them to their correct spots.
+<br>We are rewriting this example because it was a <i>first draft</i> written with basic knowledge of d3.</p>
+</div>
 
 		<script>
 
@@ -37,20 +44,6 @@
     	.append("g")
         .attr("transform", 
               "translate(" + margin.left + "," + margin.top + ")");
-
-// define marker
-svg.append("svg:defs").selectAll("marker")
-    .data(["arrow"])
-  .enter().append("svg:marker")
-    .attr("id", String)
-    .attr("viewBox", "0 -5 10 10")
-    .attr("refX", 10)
-    .attr("refY", 0)
-    .attr("markerWidth", 10)
-    .attr("markerHeight", 10)
-    .attr("orient", "auto")
-    .append("svg:path")
-    .attr("d", "M0,-5L10,0L0,0");
 
 		var button = d3.select("body").append("input")
 		  .attr("type", "button")

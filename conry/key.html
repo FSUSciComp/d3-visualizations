@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<head>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+</head>
+<body>
+
+<div id='top'>
+<p>
+Please open the web console to see this example.
+<br>This example is an investigation into the enter, update, and exit coding practice in d3.
+<br>For each value in the existing array we add append a div with the value of the array and the status of the div.
+<br>When we hit the button we push another number onto the array which appends it to the div.
+<br>In the web console we see the status of all the values of the array. Which are new, which have been changed, and which have exited.
+<br>Hopefully this example can be used as a simple starting point for more complicated projects using update, enter, and exit.
+</p>
+</div>
+<div id='chart'></div>
+<script>
+
+var chart = d3.select('#chart');
+var keyFn = function(d) { return d; };
+
+var dataset = [0, 1, 2]
+
+var divs = chart.selectAll('div')
+    .data(dataset, keyFn);
+
+		divs
+		.enter()
+	  .append('div')
+    .text(function(d) { return d + ' - exisiting'; });
+
+function toggle(){
+
+		//dataset.shift();
+		dataset.push(dataset.length);
+
+		//dataset = [0,2];
+
+		//console.log(dataset);
+
+		var divs = chart.selectAll('div')
+    	.data(dataset, keyFn);
+
+		console.log("enter:"+divs.enter().data());
+		console.log("update:"+divs.data());
+		console.log("exit:"+divs.exit().data());
+
+
+		divs
+			.style('color', 'green')
+	    .text(function(d) { return d + ' - exisiting'; });
+
+		divs
+			.enter().append('div')
+			.text(function (d) { return d+ ' - new';})
+			.style('color','red');
+
+
+		divs.exit()
+	    .style('color', 'grey')
+	    .text('deleted')
+			.remove();
+}
+</script>
+
+</body>
+<input type="button" value="button" id="mybutton" onClick="toggle()">
+
+</html>
