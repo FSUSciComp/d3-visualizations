@@ -7,18 +7,22 @@
 
 <div id='top'>
 <p>
-Please open the web console to see this example.
-<br>This example is an investigation into the enter, update, and exit coding practice in d3.
-<br>For each value in the existing array we add append a div with the value of the array and the status of the div.
-<br>When we hit the button we push another number onto the array which appends it to the div.
-<br>In the web console we see the status of all the values of the array. Which are new, which have been changed, and which have exited.
+This example is an investigation into the <b>enter, update, and exit</b> coding practice in d3.
+<br>For each value in our existing data array we add append a div with the value of the array and the status of the div.
+<br>When we hit the <i>push</i> button we push another number onto the array and add it to the DOM which appends it to the div as an <b>enter</b> element.
+<br><i>Pop</i> will remove the last element from the array and DOM. This moves that element to the <b>exit</b> context. 
+<br>In the blue text we see the status of all the values of the array: which ones are new, which have been changed, and which have exited.
 <br>Hopefully this example can be used as a simple starting point for more complicated projects using update, enter, and exit.
 </p>
 </div>
+<div id='console'></div>
 <div id='chart'></div>
+<input type="button" value="Push" onClick="toggle(1)">
+<input type="button" value="Pop" onClick="toggle(-1)">
 <script>
 
 var chart = d3.select('#chart');
+var console_output = d3.select('#console');
 var keyFn = function(d) { return d; };
 
 var dataset = [0, 1, 2]
@@ -31,10 +35,16 @@ var divs = chart.selectAll('div')
 	  .append('div')
     .text(function(d) { return d + ' - exisiting'; });
 
-function toggle(){
+function toggle(pushpop){
 
 		//dataset.shift();
-		dataset.push(dataset.length);
+		if(pushpop==1){
+			dataset.push(dataset.length);
+		}
+		else{
+			dataset.pop();
+		}
+
 
 		//dataset = [0,2];
 
@@ -43,10 +53,28 @@ function toggle(){
 		var divs = chart.selectAll('div')
     	.data(dataset, keyFn);
 
+		var consolelog = console_output.selectAll('div')
+		.data([0]);
+
+
 		console.log("enter:"+divs.enter().data());
 		console.log("update:"+divs.data());
 		console.log("exit:"+divs.exit().data());
 
+		var consoleout = "";
+
+		consoleout += "enter:"+divs.enter().data();
+		consoleout += "; update:"+divs.data();
+		consoleout += "; exit:"+divs.exit().data();
+
+		consolelog
+		.enter()
+		.append('div')
+		.text(consoleout)
+		.style('color','steelblue');
+
+		consolelog
+		.text(consoleout);
 
 		divs
 			.style('color', 'green')
@@ -66,6 +94,6 @@ function toggle(){
 </script>
 
 </body>
-<input type="button" value="button" id="mybutton" onClick="toggle()">
+
 
 </html>
