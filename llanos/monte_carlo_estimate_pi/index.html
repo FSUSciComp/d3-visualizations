@@ -2,6 +2,27 @@
 <head>
   <meta charset="utf-8">
   <script src="https://d3js.org/d3.v4.min.js"></script>
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.7.1/katex.min.css" integrity="sha384-wITovz90syo1dJWVh32uuETPVEtGigN07tkttEqPv+uR2SE/mbQcG7ATL28aI9H0" crossorigin="anonymous">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.7.1/katex.min.js" integrity="sha384-/y1Nn9+QQAipbNQWU65krzJralCnuOasHncUFXGkdwntGeSvQicrYkiUBwsgUqc1" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.7.1/contrib/auto-render.min.js" integrity="sha384-dq1/gEHSxPZQ7DdrM82ID4YVol9BYyU7GbWlIwnwyPzotpoc57wDw/guX8EaYGPx" crossorigin="anonymous"></script>
+  <script>
+    //this short script automatically renders all latex in the body
+    //it only renders latex that has the following delimiters:
+    options = {
+      delimiters: [
+        {left: "$$", right: "$$", display: true},
+        {left: "$", right: "$", display: false},
+        {left: "\\[", right: "\\]", display: true},
+        {left: "\\(", right: "\\)", display: false}
+      ]
+    };
+    
+    document.addEventListener("DOMContentLoaded", function() {
+      renderMathInElement(document.body, options);
+    });
+  </script> 
+  <!-- end KaTeX -->
   <style>
 		body { margin:0;position:fixed;top:0;right:0;bottom:0;left:0; }
     p {
@@ -47,6 +68,7 @@
 </head>
 
 <body>
+<h1> Estimate of Pi through Monte Carlo </h1>
   <div id="container">
     <div id="left">
         <canvas id="canvas-element" class="plot"></canvas>
@@ -65,9 +87,33 @@
         </div>
     </div>
 	</div>
-  <script>
+<p>
+If a circle of radius $R$ is inscribed inside a square with side length $2R$, 
+then the area of the circle will be $\pi R^2$ and the area of the square will 
+be $(2R)^2$. So the ratio of the area of the circle to the area of the square 
+will be pi/4.
+</p>
+
+<p>
+This means that, if you pick N points at random inside the square, approximately
+$N \frac{\pi}{4}$ of those points should fall inside the circle.
+</p>
+
+<p>
+This program picks points at random inside the square. It then checks to see if 
+the point is inside the circle (it knows it's inside the circle if 
+$x^2 + y^2 < R^2$, where $x$ and $y$ are the coordinates of the point and $R$ 
+is the radius of the circle). The program keeps track of how many points it's 
+picked so far ($N$) and how many of those points fell inside the circle ($M$).
+</p>
+
+<p>
+Pi is then approximated as follows:
+$$ \pi = \frac{4M}{N} $$
+</p>
+ <script>
     
-	var circleDiameter = 400;
+  var circleDiameter = 400;
   var circleRadius = circleDiameter / 2;
   var canvasArea = circleDiameter*circleDiameter;
 
