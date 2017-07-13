@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+.grid line {
+  stroke: lightgrey;
+  stroke-opacity: 0.7;
+  shape-rendering: crispEdges;
+}
+
+.grid path {
+  stroke-width: 0;
+}
+
+</style>
+<body>
+
+<svg width="400" height="400"></svg>
+<!-- load the d3.js library -->    	
+<div>
+Here we have a demo of linear regression. 
+<br />Clicking on the grid places a point. After 5 points are placed the script calculates the linear least square line through the points.
+<br />The red line is (going to be) the best quadratic that fits the points.
+<br />
+
+
+</div>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script>
+
+
+
+var scale = d3.scaleLinear()
+	.domain([0,10])
+	.range([0,200]);
+
+var colorscale = d3.scaleLinear()
+	.domain([1,10])
+	.range(["lightgray","lightgray"]);
+
+function seq(len, start){
+	var tempArray = [];
+	for(var i=start; i<=len; i++){
+		tempArray[i-1]=i;
+	} 
+	return tempArray;
+}
+
+
+var gridsize=20;
+
+var points=[];
+
+var svg = d3.select("svg"),
+    width = +svg.attr("width"),
+    height = +svg.attr("height");
+
+var xgrid = svg.selectAll(".xline")
+	.data(seq(gridsize,0));
+
+	xgrid
+		.enter().append("line")
+		.attr("class","xline")
+		.style("stroke", function(d){return colorscale(d);})		
+		.attr("x1",scale)
+		.attr("y1", 0)
+		.attr("x2", scale)
+		.attr("y2", scale(gridsize));
+
+var ygrid = svg.selectAll(".yline")
+	.data(seq(gridsize,0));
+
+	ygrid
+		.enter().append("line")
+		.attr("class","yline")
+		.style("stroke", function(d){return colorscale(d);})		
+		.attr("x1",0)
+		.attr("y1", scale)
+		.attr("x2", scale(gridsize))
+		.attr("y2", scale);
+
+	svg.on('click', function(){
+		var xclick=(scale.invert(d3.event.pageX-9));
+		var yclick=(scale.invert(d3.event.pageY-9));
+
+		addPoint(xclick, yclick);	
+	});
+
+	var addPoint = function(xclick,yclick){
+			svg
+				.append("circle")
+				.attr("cx", scale(xclick))
+				.attr("cy", scale(yclick))
+				.attr("r", 2);
+				points.push({x:xclick, y:gridsize-yclick}); //invert y axis
+				console.log(points[points.length-1].x+" "+points[points.length-1].y);
+				if(points.length%5==0){
+					points.sort(sortx);
+					printObjArray(points);
+					var avg=mean(points);
+					var stdev = std(points,avg);
+					var corrcoef = corr(points,avg,stdev);
+					var slope = corrcoef*(stdev.y/stdev.x);
+					var intercept = avg.y - slope*avg.x;
+					regressionline(slope,intercept);	
+
+
+					var sum_xy = sumarr(points, 1);
+					var sum_sq = sumarr(points, 2);
+					var sum_cu = sumarr(points, 3);
+					var sum_qd = sumarr(points, 4);
+					var sumprod_xy = sumprod(points,1);
+					var sumprod_xsqy = sumprod(points,2);
+
+					n_points = points.length;
+					var sigxx = sum_sq.x - (Math.pow(sum_xy.x,2)/n_points);
+					var sigxy = sumprod_xy - ((sum_xy.x*sum_xy.y)/n_points);
+					var sigxxsq = sum_cu.x - ( (sum_sq.x*sum_xy.x)/n_points);
+					var sigxsqy = sumprod_xsqy - ((sum_sq.x*sum_xy.y)/n_points);
+					var sigxsqxsq = sum_qd.x - (Math.pow(sum_sq.x,2)/n_points);
+
+					var a_coeff = (sigxsqy*sigxx - sigxy*sigxxsq) / (sigxx*sigxsqxsq - Math.pow(sigxxsq,2))
+					var b_coeff = (sigxy*sigxsqxsq - sigxsqy * sigxxsq) / (sigxx*sigxsqxsq - Math.pow(sigxxsq,2))
+					var c_coeff = (sum_xy.y/n_points) - (b_coeff*(sum_xy.x/n_points)) - (a_coeff*(sum_sq.x/n_points))			
+
+					quadraticpath(a_coeff,b_coeff,c_coeff);
+
+				}
+	}
+
+	function sumprod(arr, degreex){
+		var totalxy = 0;
+		for(var i=0;i<arr.length;i++){
+			totalxy+=(Math.pow(arr[i].x,degreex)*arr[i].y);
+		}
+		return totalxy;
+	}
+
+	function sumarr(arr, degree){
+		var total = {x:0,y:0};
+		for(var i=0;i<arr.length;i++){
+			total.x+=Math.pow(arr[i].x,degree);
+			total.y+=Math.pow(arr[i].y,degree);
+		}
+		return total;
+	}
+
+	function sortx(a,b){
+		return a.x-b.x;
+	}
+
+	function printObjArray(arr){
+		for(var i=0;i<arr.length;i++){
+			console.log(arr[i].x + " " + arr[i].y);
+		}
+	}
+
+
+	function mean(arr){
+		var total = {x:0, y:0};
+		for(var i=0;i<arr.length;i++){
+			total.x+=arr[i].x;
+			total.y+=arr[i].y;			
+		}
+		var avg = {x:total.x/(arr.length),y:total.y/(arr.length)};
+		return avg;
+	}
+
+	function std(arr,avg){
+		var resid = {x:0,y:0};
+		for(var i=0; i<arr.length;i++){
+			resid.x += Math.pow(avg.x-arr[i].x,2);
+			resid.y += Math.pow(avg.y-arr[i].y,2);
+		}
+		var stdev = {};
+		stdev.x= Math.sqrt(resid.x/(arr.length-1));
+		stdev.y= Math.sqrt(resid.y/(arr.length-1));
+		return stdev;
+	}
+
+	function corr(arr,avg,stdev){
+		var z = {};
+		var prod=0;
+		for(var i=0; i<arr.length;i++){
+			z.x = (arr[i].x - avg.x)/stdev.x;
+			z.y = (arr[i].y - avg.y)/stdev.y;
+			prod+=z.x*z.y;
+		}
+		return prod/(arr.length-1);
+	}
+
+	function regressionline(m, b){
+		console.log("slope:"+m+" intercept:"+b);
+		svg.append("line")
+		.attr("class","regression")
+		.style("stroke", "black")		
+		.attr("x1", 0)
+		.attr("y1", function(){return scale(gridsize-b)})
+		.attr("x2", scale(gridsize))
+		.attr("y2", function(){return scale((20*-m)+(gridsize-b))})
+	}
+
+	function quadraticpath(a, b, c){
+		svg.append("path")
+		.attr("class","quadratic")
+		.style("stroke", "red")		
+		.attr("d", curve(seq(gridsize,0),a,b,c))
+	}		
+
+	function curve(d,a,b,c) {
+	  newpath = "M" + 0 + "," + scale(gridsize-c);
+
+		for(var i=1; i<d.length;i++){
+	   	newpath+= " L"+scale(i)+","+scale(gridsize-((a*i)+(b*i)+c));
+		}
+		console.log("path:"+newpath);
+		return newpath;
+
+	}
+
+
+</script>
+</body>
+</html>
