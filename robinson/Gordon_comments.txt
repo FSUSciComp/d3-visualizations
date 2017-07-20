@@ -3,3 +3,5 @@ Thur June 22, 2017,1 pm
 - I see the sliders for the heat equation. I do not really like the transition. 
   Is it possible to simoly change the plot continuously as you move the slider? 
 - I do not see a description integrated with either demo
+
+No comments. 
