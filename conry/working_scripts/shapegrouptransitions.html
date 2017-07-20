@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>D3</title>
+			<script src="https://d3js.org/d3.v4.min.js"></script>
+		<style>
+
+		</style>
+	</head>
+	<body>
+	<div id='chart'>
+	This example shows shape and group transitions and transforms. When the page loads, since blue and red shapes are grouped they both move vertically together. 
+	<br>The next transition only acts and rects which transforms their xpos to the right. Another seperate transition causes the circles to all transform their position to the same point.
+	<br>Finally, the svg path lines first move and then transform into an svg path made from the same coordinates.
+
+
+<br/><font color="red"> I do not understand what you write. Let us try again. Introduce what you wish to do, then start explaining. No need to go too fast. Why do you use so many breaks?
+Fix spelling errors (in all files, add commas where needed.</font>
+
+	</div>
+
+		<script>
+
+			var canvas = d3.select("body").append("svg")
+				.attr("width", 1000)
+				.attr("height",500);
+
+			var chart = d3.select('#chart');
+			var divs = chart.selectAll('div');
+			divs.enter().append()
+		    .text('test');
+
+			var dataset = [
+				{
+					"source":
+					{x:10,y:10}
+					,
+					"target":
+					{x:300,y:300}				
+				},
+				{
+					"source":
+					{x:50,y:50}
+					,
+					"target":
+					{x:200,y:200}				
+				},
+				{
+					"source":
+					{x:200,y:200}
+					,
+					"target":
+					{x:1,y:400}				
+				}];
+
+
+			var tree = d3.tree()
+				.size([400,400]);
+
+			var nodes = d3.hierarchy(dataset);
+
+			nodes = tree(nodes);
+
+			console.log(nodes);
+
+			//var diagonal = d3.path();
+
+			var shapeGroup = canvas.append("g");
+
+
+			var circleGroup = shapeGroup.selectAll("circle")
+				.data(dataset).enter().append("circle")
+				.attr("cx", function(d){ return d.source.x})
+				.attr("cy", function(d){ return d.source.y})
+				.attr("r",10)
+				.attr("fill","blue")
+				//.transition()
+				//.attr("transform", "translate("+ 200 +","+ 0 +")")
+				.transition()
+				.duration(5000)
+					.attr("cx",0)
+					.attr("cy",10);
+				
+
+
+			var rectGroup = shapeGroup.selectAll("rect")
+				.data(dataset).enter().append("rect");
+
+			rectGroup
+				.attr("x",function(d){return d.source.x})
+				.attr("y",function(d){return d.source.y})
+				.attr("height", 20)
+				.attr("width", 20)
+				.attr("fill", "red")
+				.style("opacity",0.4);
+
+			shapeGroup
+				.transition()
+				.duration(1000)
+				.attr("transform","translate(" + 0 + "," + 100 + ")");
+	
+			rectGroup
+				.transition()
+				.duration(5000)
+				.attr("transform","translate(" + 200 + "," + 0 + ")");
+
+
+			var curves = canvas.selectAll("path").data(dataset).enter().append("path");
+
+			curves
+				//.attr("class","path")
+				.attr("fill","none")
+				.attr("stroke","black")
+				.attr("d", function(d,i){console.log(i);return link(d)})
+				.transition()
+				.duration(1000)
+				.attr("transform","translate(" + 200 + "," + 0 + ")")
+				.transition()
+				.duration(5000)
+						.attr("d", "M0,10C155,10 155,300 300,300"); 
+
+				curves.exit().remove();
+
+			function link(d) {
+				return "M" + d.source.y + "," + d.source.x
+						+ "C" + (d.source.y + d.target.y) / 2 + "," + d.source.x
+						+ " " + (d.source.y + d.target.y) / 2 + "," + d.target.x
+						+ " " + d.target.y + "," + d.target.x;
+			}
+
+
+		</script>
+
+	</body>
+</html>
