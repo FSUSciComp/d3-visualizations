@@ -6,28 +6,31 @@
 <body>
 
 <div id='top'>
-<p>
+<p style="width:800px">
 This example is an investigation into the <b>enter, update, and exit</b> coding practice in d3.
-<br>For each value in our existing data array we add append a div with the value of the array and the status of the div.
-<br>When we hit the <i>push</i> button we push another number onto the array and add it to the DOM which appends it to the div as an <b>enter</b> element.
-<br><i>Pop</i> will remove the last element from the array and DOM. This moves that element to the <b>exit</b> context. 
-<br>In the blue text we see the status of all the values of the array: which ones are new, which have been changed, and which have exited.
-<br>Hopefully this example can be used as a simple starting point for more complicated projects using update, enter, and exit.
-
+For each value in our existing data array we append new div containing the value of the array (0,1,2...) and the status of the div (existing or new).
+When we hit the <i>push</i> button we push another number onto the array which in turn adds it to the html as an <b>enter</b> element.
+<i>Pop</i> will remove the last element from the array and html. This moves that element to the <b>exit</b> context. 
+In the blue text we see the status of all the values of the array: which ones are new, which have been changed, and which have exited.
+Hopefully this example can be used as a simple starting point for more complicated projects using update, enter, and exit.
+</p>
 <br/><font color="red"> The explanation is more for the developer (use of DOM) rather than the student taking a course in which this exampmle is provided as a means
 to learn the concept of linked lists or stacks. How would you change the text to help the student? Imagine that you are this student. I was able to understand 
 how this works. I think it would be better though to treat the three states equally, one color for each state. </font>
 
 </p>
 </div>
-<div id='console'></div>
-<div id='chart'></div>
+<div id='enter' style="width:100px; float:left">Entering </div>
+<div id='update' style="width:100px; float:left">Updating </div>
+<div id='exit' style="width:100px; float:left">Exiting </div>
+
+<div id='chart' style="clear:left"></div>
 <input type="button" value="Push" onClick="toggle(1)">
 <input type="button" value="Pop" onClick="toggle(-1)">
 <script>
 
 var chart = d3.select('#chart');
-var console_output = d3.select('#console');
+
 var keyFn = function(d) { return d; };
 
 var dataset = [0, 1, 2]
@@ -58,7 +61,13 @@ function toggle(pushpop){
 		var divs = chart.selectAll('div')
     	.data(dataset, keyFn);
 
-		var consolelog = console_output.selectAll('div')
+		var c_enter = d3.select('#enter').selectAll('div')
+		.data([0]);
+
+		var c_update = d3.select('#update').selectAll('div')
+		.data([0]);
+
+		var c_exit = d3.select('#exit').selectAll('div')
 		.data([0]);
 
 
@@ -66,20 +75,38 @@ function toggle(pushpop){
 		console.log("update:"+divs.data());
 		console.log("exit:"+divs.exit().data());
 
-		var consoleout = "";
+		c_text_enter = divs.enter().data();
+		c_text_update = divs.data();
+		c_text_exit = divs.exit().data();
 
-		consoleout += "enter:"+divs.enter().data();
-		consoleout += "; update:"+divs.data();
-		consoleout += "; exit:"+divs.exit().data();
-
-		consolelog
+		c_enter
 		.enter()
 		.append('div')
-		.text(consoleout)
-		.style('color','steelblue');
+		.text(c_text_enter)
+		.style('color','red');
 
-		consolelog
-		.text(consoleout);
+		c_enter
+		.text(c_text_enter);
+
+		c_update
+		.enter()
+		.append('div')
+		.text(c_text_update)
+		.style('color','green');
+
+		c_update
+		.text(c_text_update);
+
+		c_exit
+		.enter()
+		.append('div')
+		.text(c_text_exit)
+		.style('color','gray');
+
+		c_exit
+		.text(c_text_exit);
+
+
 
 		divs
 			.style('color', 'green')

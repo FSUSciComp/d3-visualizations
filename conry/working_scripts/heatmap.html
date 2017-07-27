@@ -10,15 +10,19 @@
 	</head>
 	<body>
 <div id='top'>
-<p>
-<br />This is an example of a simple heatmap. The data shown is taken from mydata.tsv which has two columns of random numbers between 0 and 1. 
-<br />For each value in the first column a rect is drawn and filled using a color scale from red(0) to blue(1). 
-<br />Clicking on any rect updates the data to use the second column's values instead of the first column's.
-<br /> This dynamic data selection approach can be applied to many other projects.</div>
+<p style="width:800px">
+This is an example of a simple heatmap which is a graphical representation of values in a table or matrix. The table on the right consists of two columns of random numbers between 0 and 1. 
+For each value in the first column of the table a rectangle is drawn and filled using a color scaled from red(0) to blue(1). 
+Clicking on any rect updates the heatmap to use the table's second column values instead of the first column.
+This dynamic data selection approach can be applied to many other projects.
+</p>
 <br> <font  color="red"> Could you please provide an example of usage, using values before and after you click to make this clear to the reader? </font></br>
-
+<span>
+<svg style="float:left">></svg>
+<div style="margin-right:20px; float:left" id="divx"></div>
+<div style="float:left" id="divy"></div>
+</span>
 		<script>
-
 
 		var numrows = 6;
 		var width = 50;
@@ -26,15 +30,43 @@
 		var ypos = 0;
 		d3.tsv("./mydata.tsv", function(data) {
 
+
+		var divx = d3.select('#divx');
+
+		var divy = d3.select('#divy');
+
+		var divsx = divx.selectAll('div')
+    .data(data);
+
+		var divsy = divy.selectAll('div')
+    .data(data);
+
+
 			var color = d3.scaleLinear()
 				.domain([0,1])
-				.range(["red","blue"])
+				.range(["red","blue"]);
+
+
+			divsx
+			.enter()
+			.append('div')
+			.append("class", "xdiv")
+		  .text(function(d) { return d.x})
+			.style("color",function(d) { return color(d.x)});
+					
+			divsy
+			.enter()
+			.append('div')
+			.append("class", "ydiv")
+		  .text(function(d) { return d.y})
+			.style("color","lightgray");
+					
 
 			var margin = {top: 0, right: 0, bottom: 0, left: 100},
-		    mwidth = 1000 - margin.left - margin.right,
-		    mheight = 1000 - margin.top - margin.bottom;
+		    mwidth = 600 - margin.left - margin.right,
+		    mheight = 600 - margin.top - margin.bottom;
 
-			var canvas = d3.select("body").append("svg")
+			var canvas = d3.select("svg")
 				.attr("width",mwidth)
 				.attr("height",mheight)
         .attr("transform", 
@@ -66,11 +98,20 @@
 					.on('click',function(d,i){
 						console.log(i);
 						if(clicked==false){
-								clicked=true;
-							}
-							else{
-								clicked=false;
-							}
+							clicked=true;
+						}
+						else{
+							clicked=false;
+						}
+
+						d3.select('#divx').selectAll('div').data(data)
+					  .text(function(d) { return d.x})
+						.style("color",function(d) { if(clicked){ return "lightgray"} else{ return color(d.x)}});
+
+						d3.select('#divy').selectAll('div').data(data)
+					  .text(function(d) { return d.y})
+						.style("color",function(d) { if(!clicked){ return "lightgray"} else{ return color(d.y)}});
+
 						canvas.selectAll("rect").transition().attr("fill", function(d){
 							console.log("clickval: " + clicked);						
 							if(clicked==true){					
@@ -79,7 +120,8 @@
 							else{
 								return color(d.x);
 							}
-						})
+						});
+						
 					})
 					.on('mouseover',function(d,i){
 						var cur_i=i;
