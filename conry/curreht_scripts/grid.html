@@ -15,16 +15,18 @@
 </style>
 <body>
 <div style="height=80%">
-<div id="graph" style="width:400px; float:left">
+<div id="graph" style="width:405px; float:left">
 <svg width="405" height="420"></svg>
 </div>
-<div id="ui" style="width:100px; float:left">
+<div id="ui" style="width:100px;float:left">
 </div>
-<div id="doc" style="width:300px; float:right">
-<br />Here we have a demo of linear regression. 
-<br />Clicking on the grid places a point. After 5 points are placed the script calculates the linear least square line through the points.
-<br />The blue line is the best quadratic that fits the points.
-<br />
+<div id="doc" style="width:300px; clear:left">
+<p style="width:800px">
+This is a least squares regression demo. 
+Clicking on the grid places a point. After 2 points are placed the script calculates the least squares line through the points (drawn in black).
+The blue line is the best quadratic that fits the points. Each additional point added recalculates the line and the curve. 
+
+</p>
 </div>
 </div>
 <script src="https://d3js.org/d3.v4.min.js"></script>
@@ -60,6 +62,8 @@ var svg = d3.select("svg"),
     height = +svg.attr("height");
 
 
+
+
 var xgrid = svg.selectAll(".xline")
 	.data(seq(gridsize,0));
 
@@ -84,14 +88,23 @@ var ygrid = svg.selectAll(".yline")
 		.attr("x2", scale(gridsize))
 		.attr("y2", scale);
 
+
+var background = svg
+				.append("rect")
+				.attr("x", 0)
+				.attr("y", 0)
+				.attr("height", 400)
+				.attr("width", 400)
+				.attr("fill","transparent");
+
 	var xAxis = d3.axisBottom(scale);
 	
 		d3.select("svg")
 			.append("g")
 			.attr("transform", "translate(-1,400)")
-.call(xAxis);
+			.call(xAxis);
 
-	svg.on('click', function(){
+	background.on('click', function(){
 		var xclick=(scale.invert(d3.event.pageX-9));
 		var yclick=(scale.invert(d3.event.pageY-9));
 
@@ -103,41 +116,26 @@ var ygrid = svg.selectAll(".yline")
 				.append("circle")
 				.attr("cx", scale(xclick))
 				.attr("cy", scale(yclick))
-				.attr("r", 2);
+				.attr("r", 5)
+      	.style("cursor", "pointer")
+      	.call(drag);
 				points.push({x:xclick, y:gridsize-yclick}); //invert y axis
 				console.log(points[points.length-1].x+" "+points[points.length-1].y);
-				if(points.length%5==0){
-					points.sort(sortx);
-					printObjArray(points);
-					var avg=mean(points);
-					var stdev = std(points,avg);
-					var corrcoef = corr(points,avg,stdev);
-					var slope = corrcoef*(stdev.y/stdev.x);
-					var intercept = avg.y - slope*avg.x;
-					regressionline(slope,intercept);	
-					sse(points,0,slope,intercept);
-
-					var sum_xy = sumarr(points, 1);
-					var sum_sq = sumarr(points, 2);
-					var sum_cu = sumarr(points, 3);
-					var sum_qd = sumarr(points, 4);
-					var sumprod_xy = sumprod(points,1);
-					var sumprod_xsqy = sumprod(points,2);
-
-					n_points = points.length;
-					var sigxx = sum_sq.x - (Math.pow(sum_xy.x,2)/n_points);
-					var sigxy = sumprod_xy - ((sum_xy.x*sum_xy.y)/n_points);
-					var sigxxsq = sum_cu.x - ( (sum_sq.x*sum_xy.x)/n_points);
-					var sigxsqy = sumprod_xsqy - ((sum_sq.x*sum_xy.y)/n_points);
-					var sigxsqxsq = sum_qd.x - (Math.pow(sum_sq.x,2)/n_points);
-
-					var a_coeff = (sigxsqy*sigxx - sigxy*sigxxsq) / (sigxx*sigxsqxsq - Math.pow(sigxxsq,2))
-					var b_coeff = (sigxy*sigxsqxsq - sigxsqy * sigxxsq) / (sigxx*sigxsqxsq - Math.pow(sigxxsq,2))
-					var c_coeff = (sum_xy.y/n_points) - (b_coeff*(sum_xy.x/n_points)) - (a_coeff*(sum_sq.x/n_points))			
-
-					quadraticpath(a_coeff,b_coeff,c_coeff);
-					sse(points,a_coeff,b_coeff,c_coeff);
+				if(points.length>1){
+					calc_curves(points);
 				}
+	}
+
+	var drag=d3.drag()
+				.on("drag",dragmove);
+
+
+	function dragmove(d) {
+		console.log("dragging");
+		var x=d3.event.x-9;
+		var y=d3.event.y-9;
+		console.log(x+" "+y);
+		d3.select(this).attr("transform", "translate(" + x + "," + y + ")");
 	}
 
 	function sumprod(arr, degreex){
@@ -264,6 +262,38 @@ var ygrid = svg.selectAll(".yline")
 		}
 	}
 
+	function calc_curves(points){
+					points.sort(sortx);
+					printObjArray(points);
+					var avg=mean(points);
+					var stdev = std(points,avg);
+					var corrcoef = corr(points,avg,stdev);
+					var slope = corrcoef*(stdev.y/stdev.x);
+					var intercept = avg.y - slope*avg.x;
+					regressionline(slope,intercept);	
+					sse(points,0,slope,intercept);
+
+					var sum_xy = sumarr(points, 1);
+					var sum_sq = sumarr(points, 2);
+					var sum_cu = sumarr(points, 3);
+					var sum_qd = sumarr(points, 4);
+					var sumprod_xy = sumprod(points,1);
+					var sumprod_xsqy = sumprod(points,2);
+
+					n_points = points.length;
+					var sigxx = sum_sq.x - (Math.pow(sum_xy.x,2)/n_points);
+					var sigxy = sumprod_xy - ((sum_xy.x*sum_xy.y)/n_points);
+					var sigxxsq = sum_cu.x - ( (sum_sq.x*sum_xy.x)/n_points);
+					var sigxsqy = sumprod_xsqy - ((sum_sq.x*sum_xy.y)/n_points);
+					var sigxsqxsq = sum_qd.x - (Math.pow(sum_sq.x,2)/n_points);
+
+					var a_coeff = (sigxsqy*sigxx - sigxy*sigxxsq) / (sigxx*sigxsqxsq - Math.pow(sigxxsq,2))
+					var b_coeff = (sigxy*sigxsqxsq - sigxsqy * sigxxsq) / (sigxx*sigxsqxsq - Math.pow(sigxxsq,2))
+					var c_coeff = (sum_xy.y/n_points) - (b_coeff*(sum_xy.x/n_points)) - (a_coeff*(sum_sq.x/n_points))			
+
+					quadraticpath(a_coeff,b_coeff,c_coeff);
+					sse(points,a_coeff,b_coeff,c_coeff);
+	}
 
 	svg.append("line")
 		.attr("class","regression")
