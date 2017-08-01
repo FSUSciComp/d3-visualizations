@@ -3,10 +3,26 @@
 <head>
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
   <script src="https://d3js.org/d3.v4.min.js"></script>
+<!-- Copyright (c) 2010-2017 The MathJax Consortium -->
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Include these scripts for MathJax -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]}
+  });
+</script>
+<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-MML-AM_CHTML'></script>
+<!-- End of scripts necessary for MathJax -->
+
 </head>
 <style>
-
-  body { margin:0;position:fixed;top:0;right:0;bottom:0;left:0;}
+  div {
+    overflow: scroll;
+  }
+  body { margin:0;top:0;right:0;bottom:0;left:0;}
 
   #left {
     float: left;
@@ -60,6 +76,10 @@
   }
 
   .point{
+    r: 7px;
+
+  }
+  .pointR{
     r: 4px;
 
   }
@@ -68,320 +88,49 @@
 
 <body>
 
-<script>
-  var margin = {top: 50, bottom: 50, left: 50, right: 50}; 
-  var TRANSITION = 600;
-  var svg = d3.select("body").append("svg")
-      .attr("width",800)
-      .attr("height",600);
-  var width = +svg.attr("width") - margin.left - margin.right,
-      height = +svg.attr("height") - margin.top - margin.bottom;
- 
-  var t_final = 2.0,
-      n_Sol = 49,
-      dx_Sol = 20./(n_Sol-1);          
-  var Ns ={
-      "nPrev" : n_Sol,
-      "n" : n_Sol
-  };
-  var initialCond = [],
-      solutionFinal = [];
+<h1> The Heat Equation </h1>
+<p>
+$\bf{Test}$
+In this example we will be solving a parabolic PDE, the heat equation, in 1D:
+$$\frac{\partial U}{\partial t}=\alpha\frac{\partial^{2}U}{\partial
+x^{2}},$$where $\alpha$ is the thermal diffusivity coefficient. An example of where this would be used would be to determine
+how the temperature $U(x,t)$ within a material changed with time.  For
+this example we will imagine that the ends of the material are being
+cooled to keep them at some fixed
+temperature.  In this case we will unrealistically cool the endpoints to
+zero.  This gives us the boundary conditions
+$U(\frac{-L}{2},t)=U(\frac{L}{2},t)=0$. The temperature profile that we
+will begin with is a gaussian. The gaussian is the the steady state
+solution
+that results from
+heating the center of the material, holding it at some constant temperature
+$T$. For this example $T(0,0)=1$. 
+</p>
+<p>
+$\textbf{Choosing a Numerical Scheme}$
+</p>
+<p>
+We need to choose two numerical schemes to solve this PDE. First, we
+need to decide on how we are going to estimate the second spacial
+derivative of $U.$ For this problem I'm choosing $2^{nd}$ order central
+difference:
+$$\frac{\partial^{2}U}{\partial{x^{2}}}_{i}\approx\frac{U_{i-1}-2U_{i}+U_{i+1}}{\Delta
+x^{2}}.$$
+Now we need to decide how to step forward in time. An obvious choice
+for this is simple Forward Euler: $$U(x,t+\Delta t)\approx
+U(x,t)+\dot{U}(x,t)\Delta t$$
+where $\dot{U}$ is the first time derivative of $U$ which we have an
+expression for from the PDE that we aim to satisfy. Plugging in our
+approximation for the second derivative we can see the iterative scheme
+takes shape:
+$$U_{x_{i},t+1}=U_{x_{i},t}+\alpha \left(\frac{U_{x_{i-1},t}-2U_{x_{i},t}+U_{x_{i+1},t}}{\Delta
+x^{2}}\right)\Delta t.$$ 
+It's clear to see that the LHS is calculated only from $U$ from the
+previous timestep. This means we can simply step forward through time
+if we always save what $U$ was from the last step and iterate over it.
+</p>
 
-  var xScale = d3.scaleLinear()
-      .range([+margin.left,width-margin.right])
-      .domain([-10,10]);
-  var yScale = d3.scaleLinear()
-      .range([(+height-margin.bottom-100),margin.top])
-      .domain([0,1]);
-  var colorScale = d3.scaleLog()
-      .domain([1E-3,0.2])
-      .range(["green","red"])
-      .clamp(true);
-  var xAxis = d3.axisBottom(xScale),
-      yAxis = d3.axisLeft(yScale);
+<script type='text/javascript' src='d3FeBeSVG.js'></script>
 
-  var yAxisGroup = svg.append("g")
-      .attr("class","yaxis")
-      .attr("transform","translate("+(width/2+margin.left)+",0)")//Shift right
-      .call(yAxis);
-  var xAxisGroup = svg.append("g")
-      .attr("class","xaxis")
-      .attr("transform","translate("+margin.left+"," + (height-margin.bottom-100) +
-          ")")//Shift down
-      .call(xAxis);
-
-  //Build Initial Condition and Solution
-  for(var i=0; i<n_Sol;i++){
-    var x = -10. +dx_Sol*i;
-    var yI = Solution(x,0);
-    var yF = Solution(x,t_final);
-    var tupleI = {
-      "x":x,
-      "y":yI
-    };
-    var tupleF = {
-      "x":x,
-      "y":yF
-    };
-    initialCond.push(tupleI);
-    solutionFinal.push(tupleF);
-  }
-  console.log(solutionFinal[0].y); 
-
-  var lineFormat = d3.line()
-  .x(function(d){return xScale(d.x)})
-  .y(function(d){return yScale(d.y)})
-      .curve(d3.curveMonotoneX);
-  //Plot IC and FS
-  var IC = svg.append("path")
-      .attr("class","Initial Condition")
-      .attr("d",lineFormat(initialCond))
-      .attr("stroke","black")
-      .attr("stroke-width",3)
-      .attr("fill","none")
-      .attr("transform","translate("+(margin.left)+",0)");//Shift right
-  var FS = svg.append("path")
-      .attr("class","Exact Solution")
-      .attr("d",lineFormat(solutionFinal))
-      .attr("stroke","green")
-      .attr("stroke-width",3)
-      .attr("fill","none")
-      .attr("transform","translate("+(margin.left)+",0)");//Shift right
-  var curSol = svg.append("path")
-      .attr("class","CurrentSolution")
-      .attr("d",lineFormat(initialCond))
-      .attr("stroke","blue")
-      .attr("stroke-width",3)
-      .attr("fill","none")
-      .attr("transform","translate("+(margin.left)+",0)");//Shift right
-
-//Draw points for current solution
-  svg.append("g")
-      .attr("class","points")
-      .selectAll(".circle")
-      .data(initialCond)
-      .enter()
-      .append("circle")
-        .attr("class","point")
-        .attr("r","4px")
-        .attr("cx",function(d){return xScale(d.x)+margin.left})
-        .attr("cy",function(d){return yScale(d.y)});
-//DT SLIDER
-  var dt_min = 1E-3,
-      dt_max = 1E0,
-      dtFormat = d3.format(".1e");
-  var sliderScale = d3.scaleLog()
-      .domain([dt_min,dt_max])
-      .range([margin.left, width-margin.right])
-      .clamp(true);
-
-  var dtSlider = svg.append("g")
-      .attr("class","slider")
-      .attr("transform","translate("+margin.left+","+(height-margin.bottom)+")");
-
-  dtSlider.append("line")
-      .attr("class","track")
-      .attr("x1",sliderScale.range()[0])
-      .attr("x2",sliderScale.range()[1])
-    .select(function() {return this.parentNode.appendChild(this.cloneNode(true));})
-      .attr("class","track-inset")
-    .select(function(){return this.parentNode.appendChild(this.cloneNode(true));})
-      .attr("class","track-overlay")
-      .call(d3.drag()
-          .on("start.interrupt",function(){dtSlider.interrupt()})
-          .on("start drag", function()
-            {dtSliding(sliderScale.invert(d3.event.x))})
-          .on("end",
-              function(){calculate()}));
-
-  dtSlider.insert("g",".track-overlay")
-      .attr("class","ticks")
-      .attr("transform","translate(0,"+18+")")
-    .selectAll("text")
-    .data(sliderScale.ticks(3))
-    .enter().append("text")
-      .attr("x",sliderScale)
-      .attr("text-anchor","middle")
-      .text(function(d) {return dtFormat(d);});
-
-  var dtHandle = dtSlider.insert("circle",".track-overlay")
-      .attr("class","dtHandle")
-      .attr("cx",margin.left)
-      .attr("r",8);
-  var dtHandleLabel = dtSlider.insert("g",".track-overlay")
-      .attr("class","dtHandleLabel")
-
-  var pos = d3.selectAll(".dtHandle").attr("cx");
-  dtHandleLabel.append("text")
-      .attr("class","dtText")
-      .attr("x",+pos-16)
-      .attr("y", -10)
-      .text(dtFormat(sliderScale.invert(pos)));
-  dtHandleLabel.append("text")
-      .attr("x",-40)
-      .attr("y",3)
-      .attr("font-size","12px")
-      .style("font-weight","bold")
-      .text("Timestep Size:");
-//DX slider
-  var nMax = 120,
-      nMin = 10,
-      dxFormat = d3.format("d");
-  var dxSliderScale = d3.scaleLinear()
-      .domain([nMin,nMax])
-      .range([margin.left, width-margin.right])
-      .clamp(true);
-
-  var dxSlider = svg.append("g")
-      .attr("class","dxSlider")
-      .attr("transform","translate("+margin.left+","+(height-margin.bottom-60)+")");
-
-  dxSlider.append("line")
-      .attr("class","track")
-      .attr("x1",dxSliderScale.range()[0])
-      .attr("x2",dxSliderScale.range()[1])
-    .select(function() {return this.parentNode.appendChild(this.cloneNode(true));})
-      .attr("class","track-inset")
-    .select(function(){return this.parentNode.appendChild(this.cloneNode(true));})
-      .attr("class","track-overlay")
-      .call(d3.drag()
-          .on("start.interrupt",function(){dxSlider.interrupt()})
-          .on("start drag", function()
-            {dxSliding(dxSliderScale.invert(d3.event.x))})
-          .on("end",
-              function(){updateDX(dxSliderScale.invert(d3.event.x))}));
-
-  dxSlider.insert("g",".track-overlay")
-      .attr("class","ticks")
-      .attr("transform","translate(0,"+18+")")
-    .selectAll("text")
-    .data(dxSliderScale.ticks(11))
-    .enter().append("text")
-      .attr("x",dxSliderScale)
-      .attr("text-anchor","middle")
-      .text(function(d) {return dxFormat(d);});
-
-  var dxHandle = dxSlider.insert("circle",".track-overlay")
-      .attr("class","dxHandle")
-      .attr("cx",margin.left)
-      .attr("r",8);
-  var dxHandleLabel = dxSlider.insert("g",".track-overlay")
-      .attr("class","dxHandleLabel")
-
-  var dxpos = d3.selectAll(".dxHandle").attr("cx");
-  dxHandleLabel.append("text")
-      .attr("class","dxText")
-      .attr("x",+dxpos-8)
-      .attr("y", -10)
-      .text(dxFormat(dxSliderScale.invert(dxpos)));
-  dxHandleLabel.append("text")
-      .attr("x",-40)
-      .attr("y",3)
-      .attr("font-size","10px")
-      .style("font-weight","bold")
-      .text("Number of Points:");
-  //Add text labels to plot
-  var solutionTime = svg.append("text")
-      .attr("class","time")
-      .attr("transform","translate("+(width-margin.right-20)+","+(margin.top
-              +20)+")")
-      .text("Time: 0s");
-
-    
-//DT SLIDER      
-
-  function dtSliding(h){
-    dtHandle.attr("cx",sliderScale(h));
-    d3.selectAll(".dtText")
-      .attr("x",sliderScale(h)-16)
-      .text(dtFormat(h));
-    calculate(); 
-
-  }
-  function dxSliding(h){
-    dxHandle.attr("cx",dxSliderScale(h));
-    d3.selectAll(".dxText")
-      .attr("x",dxSliderScale(h)-8)
-      .text(dxFormat(h));
-  
-
-  }
-
-  function updateDX(h){
-    var holder = Ns.n;
-    var roundedN = Math.round(h);
-    Ns.nPrev = holder;
-    Ns.n = roundedN;
-    //Round Slider Value to Nearest Int
-    dxHandle.attr("cx",dxSliderScale(roundedN));
-    calculate();
-  }
-
-  function calculate(){
-    //Clear current function
-    var dt = sliderScale.invert(d3.selectAll(".dtHandle").attr("cx"));
-    var N =
-      Math.round(dxSliderScale.invert(d3.selectAll(".dxHandle").attr("cx")));
-    var dx = 20./(N-1);
-    var constant = dt/dx/dx;
-    var sol = [];
-    for(var i=0; i<N; i++){ 
-      var x = -10. + dx*i;
-      var y = Solution(x,0);
-      var tuple = {
-        "x":x,
-        "y":y
-      };
-      sol.push(tuple);
-    }
-    var steps = parseInt(t_final/dt);
-    var time = 0.0;
-    //reset curSol
-    for(var j =0; j<steps; j++){
-
-      var solP = sol.slice();
-    
-      for(var i=1;i<N-1;i++){
-        sol[i].y= solP[i].y- constant*(2*solP[i].y-solP[i-1].y-solP[i+1].y);
-      }
-      time += dt;
-    }
-    var tDiff = t_final - time;
-    solP = sol.slice();
-    for(var i=1;i<N-1;i++){
-      sol[i].y= solP[i].y- tDiff/dx/dx*(2*solP[i].y-solP[i-1].y-solP[i+1].y);
-    }
-    time += tDiff;
-    //Update Points
-
-    d3.selectAll(".time")
-      .text("Time: "+time+"s");
-    curSol
-     // .transition()
-     // .duration(1500)
-      .attr("d",lineFormat(sol));
-    var points = svg.select(".points").selectAll(".point")
-        .data(sol);
-    points.exit().remove();
-    points.enter() 
-        .append("circle")
-        .attr("class","point") 
-        .attr("r",0)
-        //Make points transition from upper right
-        .attr("cx",function(d,i){
-            return i/parseFloat(N-1)*600 + parseInt(margin.left)})
-        .attr("cy",function(d){return margin.top});
-    svg.select(".points").selectAll(".point").data(sol)
-        .attr("r", "4px")
-      //  .transition().duration(1500)
-        .attr("cx",function(d){return xScale(d.x)+margin.left})
-        .attr("cy",function(d){return yScale(d.y)})
-        .style("fill",function(d){return colorScale(Math.abs(d.y-Solution(d.x,2.0)))});
-  }
-
-  function Solution(x,t){
-    return 1./Math.pow(1.+4*t,0.5)*Math.exp(-x*x/(1+4*t));
-  }
-</script>
-
+<!--<script type='text/javascript' src='d3HeatEqnRK2.js'></script>-->
 </body>
