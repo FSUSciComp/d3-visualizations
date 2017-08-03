@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+.grid line {
+  stroke: lightgrey;
+  stroke-opacity: 0.7;
+  shape-rendering: crispEdges;
+}
+
+.grid path {
+  stroke-width: 0;
+}
+
+</style>
+<body>
+<div style="height=80%">
+<div id="graph" style="width:405px; float:left">
+<svg width="405" height="420"></svg>
+</div>
+<div id="ui" style="width:100px;float:left">
+</div>
+<div id="doc" style="width:300px; clear:left">
+<p style="width:800px">
+This is a least squares regression demo. 
+Clicking on the grid places a point. After 2 points are placed the script calculates the least squares line through the points (drawn in black).
+The blue line is the best quadratic that fits the points. Each additional point added recalculates the line and the curve. 
+
+</p>
+</div>
+</div>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+
+
+<script>
+
+
+
+var scale = d3.scaleLinear()
+	.domain([0,20])
+	.range([0,400]);
+
+var colorscale = d3.scaleLinear()
+	.domain([1,10])
+	.range(["lightgray","lightgray"]);
+
+function seq(len, start){
+	var tempArray = [];
+	for(var i=start; i<=len; i++){
+		tempArray[i]=i;
+	} 
+	return tempArray;
+}
+
+
+var gridsize=20;
+
+var points=[];
+
+var svg = d3.select("svg"),
+    width = +svg.attr("width"),
+    height = +svg.attr("height");
+
+
+
+
+var xgrid = svg.selectAll(".xline")
+	.data(seq(gridsize,0));
+
+	xgrid
+		.enter().append("line")
+		.attr("class","xline")
+		.style("stroke", function(d){return colorscale(d);})		
+		.attr("x1",scale)
+		.attr("y1", 0)
+		.attr("x2", scale)
+		.attr("y2", scale(gridsize));
+
+var ygrid = svg.selectAll(".yline")
+	.data(seq(gridsize,0));
+
+	ygrid
+		.enter().append("line")
+		.attr("class","yline")
+		.style("stroke", function(d){return colorscale(d);})		
+		.attr("x1",0)
+		.attr("y1", scale)
+		.attr("x2", scale(gridsize))
+		.attr("y2", scale);
+
+
+var background = svg
+				.append("rect")
+				.attr("x", 0)
+				.attr("y", 0)
+				.attr("height", 400)
+				.attr("width", 400)
+				.attr("fill","transparent");
+
+	var xAxis = d3.axisBottom(scale);
+	
+		d3.select("svg")
+			.append("g")
+			.attr("transform", "translate(-1,400)")
+			.call(xAxis);
+
+	background.on('click', function(){
+		var xclick=(scale.invert(d3.event.pageX-9));
+		var yclick=(scale.invert(d3.event.pageY-9));
+		addPoint(xclick, yclick);	
+	});
+
+	var addPoint = function(xclick,yclick){
+			
+			points.push({x:xclick, y:gridsize-yclick}); //invert y axis
+			console.log(points[points.length-1].x+" "+points[points.length-1].y);
+			if(points.length>1){
+				calc_curves(points);
+			}
+
+			svg
+				.append("circle")
+				.attr("class", function(){ return "point_"+(points.length-1)})
+				.attr("cx", scale(xclick))
+				.attr("cy", scale(yclick))
+				.attr("r", 5)
+      	.style("cursor", "pointer")
+      	.call(drag)
+				//.on('click',clickcircle)
+				.on('dragend', function(){
+				 	console.log("clicked " + d3.select(this).attr("class"));
+				});
+
+
+	}
+
+	var drag=d3.drag()
+				.on("drag",dragmove);
+
+
+	function dragmove() {
+		console.log("dragging ");
+		var cx=scale.invert(d3.event.x);
+		var cy=scale.invert(d3.event.y);
+		d3.select(this).attr("cx", scale(cx));
+		d3.select(this).attr("cy", scale(cy));
+	}
+
+	function sortx(a,b){
+		return a.x-b.x;
+	}
+
+	function printObjArray(arr){
+		for(var i=0;i<arr.length;i++){
+			console.log(arr[i].x + " " + arr[i].y);
+		}
+	}
+
+
+	function quadraticpath(a, b, c){
+		document.getElementById("quadratic").value = "quad: y="+Math.round(a*100)/100+"x^2+"+Math.round(b*100)/100+"x+"+Math.round(c*100)/100;
+		//svg.selectAll(".quadratic").remove();
+		svg.select(".quadratic")
+			.transition()
+			.duration(2000)
+			.style("stroke", "blue")
+			.style("fill", "none")		
+			.attr("d", curve(seq(gridsize,0),a,b,c))
+	}		
+
+	function curve(d,poly) {
+		console.log(poly[1]);
+	  newpath = "M" + 0 + "," + 20*(gridsize-poly[0]);
+		for(var i=1; i<d.length+5;i++){
+			//var yval = gridsize-(a*Math.pow(i,2)+b*i+c);
+			//svg
+			//	.append("circle")
+			//	.attr("cx", scale(i))
+			//	.attr("cy", scale(yval))
+			//	.attr("r", 2);
+			newpath+= "L"+scale(i)+","+ scale(gridsize-(poly[i]));
+		}
+		//console.log("path:"+newpath);
+		return newpath;
+
+	}
+
+	function arrow(d,i) {
+		var begin = scale(i+2)+1;
+		var end = scale(i+1)+rectwidth;
+	  return "M" + begin + " 0 H" + end + "m 1 0 l 10 7 m -10 -7 l 10 -7";
+	}
+
+	function calc_curves(points){
+					points.sort(sortx);
+					printObjArray(points);
+										
+					//var domain = seq(gridsize,0);
+
+					var poly = [0];
+					for(var j=0; j<gridsize; j++){
+						poly[j]=0;
+						var L = [1];
+						for(var k=0; k<points.length; k++){
+							L[k]=1;
+							for(var i=0; i<points.length; i++){
+								if(i!=k){
+									L[k] *= ( ( j - points[i].x ) / ( points[k].x - points[i].x ) );
+								}
+								console.log("L("+k+")="+L[k]);
+							}
+							poly[j] += L[k] * points[k].y;  
+							console.log("poly("+j+")="+ poly[j]);
+						}
+					}
+
+					console.log("POLY!!!!!!!!="+poly[gridsize-1]);
+					svg.select(".quadratic")
+						.transition()
+						.duration(2000)
+						.style("stroke", "blue")
+						.style("fill", "none")		
+						.attr("d", curve(seq(gridsize,0), poly));
+	}
+
+	svg.append("path")
+		.attr("class","quadratic")
+		.style("stroke", "blue")
+		.style("fill", "none")		
+		.attr("d", curve(seq(gridsize,0),0))
+
+
+
+	var ui = d3.select('#ui');
+
+	ui.append("div")
+		.append("input")
+		.style("float","left")
+	  .attr("type", "text")
+	  .attr("name", "linear")
+	  .attr("value", "lagrange interpolation function")
+		.attr("id","linear"); 
+
+
+
+</script>
+
+</body>
+</html>

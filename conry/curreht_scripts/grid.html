@@ -107,35 +107,42 @@ var background = svg
 	background.on('click', function(){
 		var xclick=(scale.invert(d3.event.pageX-9));
 		var yclick=(scale.invert(d3.event.pageY-9));
-
 		addPoint(xclick, yclick);	
 	});
 
 	var addPoint = function(xclick,yclick){
+			
+			points.push({x:xclick, y:gridsize-yclick}); //invert y axis
+			console.log(points[points.length-1].x+" "+points[points.length-1].y);
+			if(points.length>1){
+				calc_curves(points);
+			}
+
 			svg
 				.append("circle")
+				.attr("class", function(){ return "point_"+(points.length-1)})
 				.attr("cx", scale(xclick))
 				.attr("cy", scale(yclick))
 				.attr("r", 5)
       	.style("cursor", "pointer")
-      	.call(drag);
-				points.push({x:xclick, y:gridsize-yclick}); //invert y axis
-				console.log(points[points.length-1].x+" "+points[points.length-1].y);
-				if(points.length>1){
-					calc_curves(points);
-				}
+      	.call(drag
+					.on('end', function(){
+				 	console.log("clicked " + d3.select(this).attr("class"));
+				}));
+
+
 	}
 
 	var drag=d3.drag()
 				.on("drag",dragmove);
 
 
-	function dragmove(d) {
-		console.log("dragging");
-		var x=d3.event.x-9;
-		var y=d3.event.y-9;
-		console.log(x+" "+y);
-		d3.select(this).attr("transform", "translate(" + x + "," + y + ")");
+	function dragmove() {
+		console.log("dragging ");
+		var cx=scale.invert(d3.event.x);
+		var cy=scale.invert(d3.event.y);
+		d3.select(this).attr("cx", scale(cx));
+		d3.select(this).attr("cy", scale(cy));
 	}
 
 	function sumprod(arr, degreex){
