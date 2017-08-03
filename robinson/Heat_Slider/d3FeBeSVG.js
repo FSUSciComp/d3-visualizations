@@ -124,18 +124,22 @@
         .attr("r","4px")
         .attr("cx",function(d){return xScale(d.x)+margin.left})
         .attr("cy",function(d){return yScale(d.y)});
-//Draw borders on BE points        
-      
+
+//Draw Legend
+  
       
 //DT SLIDER
   var dt_min = 1E-3,
-      dt_max = 1E0,
+      dt_max = 1.0,
       dtFormat = d3.format(".1e");
   var sliderScale = d3.scaleLog()
       .domain([dt_min,dt_max])
       .range([margin.left, width-margin.right])
       .clamp(true);
-
+  var dtColorScale = d3.scaleLog()
+      .domain([dt_min,dt_max])
+      .range(["green","red"])
+      .clamp(true);
   var dtSlider = svg.append("g")
       .attr("class","slider")
       .attr("transform","translate("+margin.left+","+(height-margin.bottom)+")");
@@ -186,7 +190,7 @@
       .text("Timestep Size:");
 //DX slider
   var nMax = 120,
-      nMin = 20,
+      nMin = 10,
       dxFormat = d3.format("d");
   var dxSliderScale = d3.scaleLinear()
       .domain([nMin,nMax])
@@ -242,14 +246,74 @@
       .style("font-weight","bold")
       .text("Number of Points:");
   //Add text labels to plot
-  var solutionTime = svg.append("text")
-      .attr("class","time")
-      .attr("transform","translate("+(width-margin.right-20)+","+(margin.top
+  var stabCond = svg.append("text")
+      .attr("class","stabCond")
+      .attr("transform","translate("+(width-margin.right-120)+","+(margin.top
               +20)+")")
-      .text("Time: 0s");
+      .text("Stability Condition: 0");
 
     
-//DT SLIDER      
+  //Build LogLog Plot of Error
+
+  var plotSvg = d3.select("body").append("svg")
+      .attr("width",600)
+      .attr("height",600)
+      .attr("class","ErrorPlot");
+  var width = +plotSvg.attr("width") - margin.left - margin.right,
+      height = +plotSvg.attr("height") - margin.top - margin.bottom;
+  var xLogScale = d3.scaleLog()
+      .range([+margin.left,width-margin.right])
+      //.domain([20./(nMax-1),20./(nMin-1)]);
+      .domain([1E-4,1]);
+  var yLogScale = d3.scaleLog()
+      .range([(+height-margin.bottom-100),margin.top])
+      .domain([1E-4,1]);
+  var xLAxis = d3.axisBottom(xLogScale),
+      yLAxis = d3.axisLeft(yLogScale);
+  var yLAxisGroup = plotSvg.append("g")
+      .attr("class","yLaxis")
+      .attr("transform","translate("+2*+margin.left+",0)")
+      .call(yLAxis);
+  var xLAxisGroup = plotSvg.append("g")
+      .attr("class","xLaxis")
+      .attr("transform","translate("+margin.left+"," + (height-margin.bottom-100) +
+          ")")//Shift down
+      .call(xLAxis);
+  //Create group for error points
+  plotSvg.append("g").attr("class","ErrorFE");
+  plotSvg.append("g").attr("class","ErrorBE");
+
+//Plotting function
+  function errorPlot(id,error,dt,dx){
+    //ID: 0 for FE and 1 for BE
+    if(id){
+      //BE point plot
+      console.log(id,error,dt,dx);
+      plotSvg.select(".ErrorBE")
+          .append("circle")
+            .attr("class","ErrorBEPoint")
+            .attr("r","5px")
+            .attr("cx",xLogScale(dx)+margin.left)
+            .attr("cy",yLogScale(error));
+      plotSvg.select(".ErrorBE")
+          .append("circle")
+            .attr("class","ErrorBEPoint")
+            .attr("r","4px")
+            .attr("cx",xLogScale(dx)+margin.left)
+            .attr("cy",yLogScale(error))
+            .style("fill",dtColorScale(dt));
+    }  
+    else{
+      plotSvg.select(".ErrorFE")
+          .append("circle")
+            .attr("class","ErrorFEPoint")
+            .attr("r","5px")
+            .attr("cx",xLogScale(dx)+margin.left)
+            .attr("cy",yLogScale(error))
+            .style("fill",dtColorScale(dt));
+    }
+  }
+  
 
   function dtSliding(h){
     dtHandle.attr("cx",sliderScale(h));
@@ -268,6 +332,7 @@
 
   }
 
+  
   function updateDX(h){
     //Passed N value from slider(float)
     var holder = Ns.n;
@@ -313,6 +378,17 @@
       sol[i].y= solP[i].y- tDiff/dx/dx*(2*solP[i].y-solP[i-1].y-solP[i+1].y);
     }
     time += tDiff;
+    //Calculate max Error
+    var maxFEerr = 0;
+    if(constant<1){
+      for(var i=1; i<N;i++){
+        var curErr = Math.abs(sol[i].y-Solution(sol[i].x,2.0));
+        if(curErr > maxFEerr){
+          maxFEerr=curErr;
+        }
+      }
+      errorPlot(0,maxFEerr,dt,dx);
+    }
     //Update Points
     time = 4*dt/dx/dx;
     d3.selectAll(".time")
@@ -330,6 +406,7 @@
         .attr("cx",function(d){return xScale(d.x)+margin.left})
         .attr("cy",function(d){return yScale(d.y)})
         .style("fill",function(d){return colorScale(Math.abs(d.y-Solution(d.x,2.0)))});
+    
     calculateBE();
   }
 
@@ -369,7 +446,7 @@
           delta += Math.abs(solR[k].y-up[k].y);
         }
         up = solR.slice();
-        if(count >5){break;}
+        //if(count >5){break;}
       }
       time += dt;
     }
@@ -380,21 +457,33 @@
     var constBE = 2 + dx*dx/tDiff;
     var up = solR.slice();
     var count = 0;
-    while(delta > 1E-6){
-      delta=0;
-      for(var k=1; k<N-1 ; k++){
-        solR[k].y = 1./constBE*(dx*dx/tDiff*b[k].y+solR[k-1].y+up[k+1].y);
-        delta += Math.abs(solR[k].y-up[k].y);
+    if (tDiff > 1E-6){
+      while(delta > 1E-6){
+        delta=0;
+        for(var k=1; k<N-1 ; k++){
+          solR[k].y = 1./constBE*(dx*dx/tDiff*b[k].y+solR[k-1].y+up[k+1].y);
+          delta += Math.abs(solR[k].y-up[k].y);
+        }
+        count += 1;
+        up = solR.slice();
+        if(count >5){break;}
       }
-      count += 1;
-      up = solR.slice();
-      if(count >5){break;}
     }
+    //Calculate Error
+    var maxError=0;
+    for(var i=0; i<N; i++){
+      curError = Math.abs(solR[i].y-Solution(solR[i].x,2.0));
+      if(curError > maxError){
+        maxError = curError;
+      }
+    }
+    //Plot error point
+    
     //Update Path Data
     curSolR.attr("d",lineFormat(solR));
     var stabilityCond = dt/dx/dx;
-    d3.selectAll(".time")
-      .text("Stability Cond.: "+stabilityCond+"s");
+    d3.selectAll(".stabCond")
+      .text("Stability Condition: "+stabilityCond.toPrecision(3));
     //Draw black circles for outline first
     var boldCircles = svg.select(".pointsR").selectAll(".pointRB")
         .data(solR);
@@ -418,6 +507,7 @@
           .attr("cx",function(d){return xScale(d.x)+margin.left})
           .attr("cy",function(d){return yScale(d.y)})
           .style("fill",function(d){return colorScale(Math.abs(d.y-Solution(d.x,2.0)))});
+    //errorPlot(1,maxError,dt,dx);
   }
 
   function Solution(x,t){

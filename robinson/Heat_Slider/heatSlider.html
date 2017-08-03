@@ -90,7 +90,6 @@
 
 <h1> The Heat Equation </h1>
 <p>
-$\bf{Test}$
 In this example we will be solving a parabolic PDE, the heat equation, in 1D:
 $$\frac{\partial U}{\partial t}=\alpha\frac{\partial^{2}U}{\partial
 x^{2}},$$where $\alpha$ is the thermal diffusivity coefficient. An example of where this would be used would be to determine
@@ -110,7 +109,7 @@ $T$. For this example $T(0,0)=1$.
 $\textbf{Choosing a Numerical Scheme}$
 </p>
 <p>
-We need to choose two numerical schemes to solve this PDE. First, we
+We'll choose two numerical schemes to explore in solving this PDE. First, we
 need to decide on how we are going to estimate the second spacial
 derivative of $U.$ For this problem I'm choosing $2^{nd}$ order central
 difference:
@@ -128,9 +127,36 @@ x^{2}}\right)\Delta t.$$
 It's clear to see that the LHS is calculated only from $U$ from the
 previous timestep. This means we can simply step forward through time
 if we always save what $U$ was from the last step and iterate over it.
+Thinking about the fact that we are stepping forward with every step
+gives us a simple approach to investigate stability. If we write out the
+first two iterations of FE it should be clear what conditions need to be
+satisfied for stability.
+For the first iteration we have:
+$$U_{1}^{i}=U_{0}^{i}+\alpha\left(\frac{U_{0}^{i-1}-2U_{0}^{i}+U_{0}^{i+1}}{\Delta
+x^{2}}\right)\Delta t=\left(1-\frac{2\alpha\Delta t}{\Delta
+x^{2}}\right)U_{0}^{i}+\frac{\alpha\Delta t}{\Delta
+x^{2}}(U_{0}^{i-1}+U_{0}^{i+1}),$$
+taking another step we can see that the solution at any point in time
+will be dependent on the initial condition
+$$U_{2}^{i}=\left(1-\frac{2\alpha\Delta t}{\Delta
+x^{2}}\right)U_{1}^{i}+\frac{\alpha\Delta t}{\Delta
+x^{2}}(U_{1}^{i-1}+U_{1}^{i+1})\approx\left(1-\frac{2\alpha\Delta
+t}{\Delta x^{2}}\right)^{2}U_{0}^{i}.$$
+This leads us to an expression for the leading term of the solution at
+the $n^{th}$ timestep:
+$$U_{n}^{i}\approx\left(1-\frac{2\alpha\Delta t}{\Delta
+x^{2}}\right)^{n}U_{0}^{i}.$$
+It's clear to see that if $\left|\left(1-\frac{2\alpha\Delta t}{\Delta
+x^{2}}\right)^{n}\right|>1$ our solution will
+grow exponentially. Since $\Delta t$ and $\alpha$ will always be
+positive our stability condition is$$\frac{\alpha\Delta t}{\Delta
+x^{2}}\leq1.$$ 
 </p>
+<p>
 
+</p>
 <script type='text/javascript' src='d3FeBeSVG.js'></script>
 
+<line x1="0" y1="0" x2="200" y2="200" style="stroke:rgb(255,0,0);stroke-width:2" />
 <!--<script type='text/javascript' src='d3HeatEqnRK2.js'></script>-->
 </body>
