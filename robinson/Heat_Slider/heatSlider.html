@@ -103,7 +103,12 @@ will begin with is a gaussian. The gaussian is the the steady state
 solution
 that results from
 heating the center of the material, holding it at some constant temperature
-$T$. For this example $T(0,0)=1$. 
+$T$. For this example $T(0,0)=1$ giving us an analytic solution for the
+temperature profile at any time in the future:
+$$U(x,t)=\frac{1}{\sqrt{1+4t}}e^{\left(\frac{-x^{2}}{1+4t}\right)}$$
+Our goal is to approximate what the
+temperature profile of the material will be one second into the
+future.
 </p>
 <p>
 $\textbf{Choosing a Numerical Scheme}$
@@ -115,11 +120,45 @@ derivative of $U.$ For this problem I'm choosing $2^{nd}$ order central
 difference:
 $$\frac{\partial^{2}U}{\partial{x^{2}}}_{i}\approx\frac{U_{i-1}-2U_{i}+U_{i+1}}{\Delta
 x^{2}}.$$
-Now we need to decide how to step forward in time. An obvious choice
+This formula comes from combing the Taylor series expansion for
+$U(x+\Delta x)$ and $U(x-\Delta x)$. This is considered $2^{nd}$ order
+because of the first term truncated from the approximation:
+$$\frac{\partial^{2}U}{\partial{x^{2}}}_{i}\approx\frac{U_{i-1}-2U_{i}+U_{i+1}}{\Delta
+x^{2}}-\frac{\Delta x^{2}}{4!} U_{xxxx}+\ldots$$
+We can now say we know something about the error from the spatial
+derivative approximation, $\epsilon_{x}=\beta\Delta x^{2}$,
+where $\beta$ is a constant that's dependent on the
+fourth spatial derivative of the solution.
+It's important to know this information because we can use this
+knowledge to verify that our numerical scheme is executing correctly.
+We can verify this by looking at the log of the error of our numerical
+solution (to do this it's useful to know the exact solution to calculate
+the error, although, there are other methods to verify the order of a
+model).
+$$\log(\epsilon)=\log(\epsilon_{x})=\log(\beta)+2\log(\Delta x)$$
+If you think about plotting this function you can see that it's the
+equation of a line, if plotted on a log scale, with a slope of 2.
+Therefore, if we plot the log of $\Delta x$ vs the log of the error on a
+log scale we expect to see a line of slope 2. If we do not then we have
+implemented our numerical scheme incorrectly.
+</p>
+<p>
+$\textbf{Stepping in Time}$
+</p>
+<p>Now we need to decide how to step forward in time to determine what
+the temperature profile is one second into the future. An obvious choice
 for this is simple Forward Euler: $$U(x,t+\Delta t)\approx
 U(x,t)+\dot{U}(x,t)\Delta t$$
 where $\dot{U}$ is the first time derivative of $U$ which we have an
-expression for from the PDE that we aim to satisfy. Plugging in our
+expression for from the PDE that we aim to satisfy. This
+formula comes from truncating the Taylor series expansion in
+time and comes with an error with leading term $\epsilon_{t}\approx \frac{\Delta
+t^{2}}{2!}\ddot{y}.$ This means that our original error expression is
+incorrect and now must include the error due to the time
+stepping approximation; $\epsilon = \epsilon_{x} + \epsilon_{t}.$
+(We will have to deal with this later to understand what is
+produced from the spatial convergence test.)
+Now, plugging in our
 approximation for the second derivative we can see the iterative scheme
 takes shape:
 $$U_{x_{i},t+1}=U_{x_{i},t}+\alpha \left(\frac{U_{x_{i-1},t}-2U_{x_{i},t}+U_{x_{i+1},t}}{\Delta
@@ -153,7 +192,80 @@ positive our stability condition is$$\frac{\alpha\Delta t}{\Delta
 x^{2}}\leq1.$$ 
 </p>
 <p>
+Luckily there are other time stepping schemes that are more stable but
+also come with their own numerical quirks. The other stencil we will
+explore is the implicit scheme Backward Euler where we solve the time
+reversed problem from one timestep ahead:
+$$U_{x_{i},t+1}-\dot{U}_{x_{i},t+1}\Delta t=U_{x_{i},t},$$
+now putting in our expression for the second derivative we arrive at
+$$-\frac{\alpha\Delta t}{\Delta
+x^{2}}U_{x_{i-1},t+1}+\left(1+\frac{2\alpha\Delta t}{\Delta
+x^{2}}\right)U_{x_{i},t+1}-\frac{\alpha\Delta t}{\Delta
+x^{2}}U_{x_{i+1},t+1}=U_{x_{i},t}.$$
+Since we were just talking about stability let's look at the stability
+of this scheme. Using the same logic as before, focusing on the index
+$i$ and dropping lower order terms, we see:
+$$U_{x_{i},t+1}\sim\left(\frac{1}{1+\frac{2\alpha\Delta t}{\Delta
+x^{2}}}\right)U_{x_{i},t}$$
+then extending it to any point in the future:
+$$U_{x_{i},t+n}\sim\left(\frac{1}{1+\frac{2\alpha\Delta t}{\Delta
+x^{2}}}\right)^{n}U_{x_{i},t}$$
+we can see that for this algorithm to be unstable the term in the
+denominator would have to be less than one. Since $\alpha \gt 0$
+as well as $\Delta x$ and
+$\Delta t$ Backward Euler will always be stable. So why not just use BE
+if it is always stable? Well, if we rearrange our expression from
+earlier 
+$$-U_{x_{i-1},t+1}+\left(\frac{\Delta
+x^{2}}{\alpha\Delta
+t}+2\right)U_{x_{i},t+1}-U_{x_{i+1},t+1}=\frac{\Delta
+x^{2}}{\alpha\Delta t}U_{x_{i},t}.$$
+This gives us a system of coupled equations that we need to solve
+together; this is the key characteristic of an implicit method. It's much easier to see how to solve this if we express this as a matrix
+equation
+$$\left[\begin{array}{ccccccc}
+1 & 0 & 0 & 0 & 0 & \dots & 0\\
+-1 & \frac{\Delta x^{2}}{\alpha\Delta t}+2 & -1 & 0 & 0 & \ddots & 0\\
+0 & -1 & \frac{\Delta x^{2}}{\alpha\Delta t}+2 & -1 & \ddots & \ddots &
+0\\
+\vdots & \ddots & \ddots & \ddots & \ddots & \ddots & \vdots\\
+0 & \ddots & \ddots & -1 & \frac{\Delta x^{2}}{\alpha\Delta t}+2 & -1 &
+0\\
+0 & \ddots & 0 & 0 & -1 & \frac{\Delta x^{2}}{\alpha\Delta t}+2 & -1\\
+0 & \dots & 0 & 0 & 0 & 0 & 1
+\end{array}\right]\left[\begin{array}{c}
+U_{0,t+1}\\
+U_{1,t+1}\\
+U_{2,t+1}\\
+\vdots\\
+U_{N-2,t+1}\\
+U_{N-1,t+1}\\
+U_{N,t+1}
+\end{array}\right]=\frac{\Delta x^{2}}{\alpha\Delta
+t}\left[\begin{array}{c}
+U_{0,t}\\
+U_{1,t}\\
+U_{2,t}\\
+\vdots\\
+U_{N-2,t}\\
+U_{N-1,t}\\
+U_{N,t}
+\end{array}\right]$$
 
+The first and last rows ensuring the boundary conditions. Technically
+the first and last entry of the RHS should be multiplied by the
+reciprocal of the term out front, but, since both those entries are
+zero there is no need. This is an example of how to enforce Dirichlet
+boundary conditions. If we do the row reduction operation of adding the
+first row to the second and the last to the second to last we can reduce
+the size of our problem from $N\times N$ to $N-2\times N-2$.
+We now have a problem of the form $A\vec{x}=\vec{b}$ which has the
+obvious solution of $\vec{x}=A^{-1}\vec{b}$. So we need to determine
+$A^{-1}$ which can be done naively via Gaussian elimination but one
+would prefer never to have to do that since it is an algorithm of
+$\mathcal{O}\left(N^{3}\right)$. Instead we will solve the equation
+iteratively using the Gauss-Seidel.
+INSERT GAUSS-SEIDEL STUFF
 </p>
 <script type='text/javascript' src='d3FeBeSVG.js'></script>
 
